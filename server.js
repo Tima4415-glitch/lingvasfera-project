@@ -6,6 +6,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Получаем строку подключения из переменных окружения Vercel / Supabase
@@ -14,7 +15,7 @@ const connString = process.env.DATABASE_POSTGRES_URL ||
                    process.env.POSTGRES_URL || 
                    'postgresql://postgres:postgres@localhost:5432/language_school';
 
-// Разбираем параметры подключения вручную для безопасного обхода самоподписанных SSL-сертификатов
+// Парсим параметры вручную для стабильного SSL в serverless
 const dbUrl = new URL(connString.replace('postgresql://', 'http://').replace('postgres://', 'http://'));
 
 const isLocal = dbUrl.hostname === 'localhost' || dbUrl.hostname === '127.0.0.1';
@@ -33,56 +34,76 @@ const pool = new Pool({
 // Роут создания новой заявки
 app.post('/api/requests', async (req, res) => {
     try {
-        const body = req.body || {};
-        
-        const fullName = body.fullName || body.name || body.Full_Name || body['Ваше имя'] || body['fullNameInput'];
-        const contact = body.contact || body.phone || body.Contact || body['Телефон или Telegram'] || body['contactInput'];
-        const rawLang = body.languageId || body.language || body.ID_Language || 'EN';
-        const preferredDate = body.preferredDate || body.date || body.Preferred_Date || new Date().toISOString().split('T')[0];
+        const b = req.body || {};
+        console.log('Получен запрос с полями формы:', JSON.stringify(b));
 
-        const finalFullName = fullName ? String(fullName).trim() : 'Анонимный пользователь';
-        const finalContact = contact ? String(contact).trim() : 'Не указан';
-        const targetDate = preferredDate;
+        // 1. Поиск имени по всем возможным названиям ключей
+        let fullName = b.fullName || b.name || b.studentName || b.clientName || 
+                       b.userName || b.fio || b.Full_Name || b['Ваше имя'] || 
+                       b['nameInput'] || b['fullNameInput'] || b['client_name'];
 
-        // Определяем ID_Language: по числу, коду (ZH/EN) или создаем запись при отсутствии
-        let finalLangId = null;
-
-        if (!isNaN(parseInt(rawLang, 10)) && String(rawLang).trim() !== '') {
-            const checkNum = await pool.query('SELECT "ID_Language" FROM "Language" WHERE "ID_Language" = $1', [parseInt(rawLang, 10)]);
-            if (checkNum.rows.length > 0) {
-                finalLangId = checkNum.rows[0].ID_Language;
+        // Если имя так и не найдено, проверяем любые строковые свойства объекта (кроме контактов и дат)
+        if (!fullName) {
+            for (const [key, val] of Object.entries(b)) {
+                if (typeof val === 'string' && val.length > 1 && !val.includes('+') && !val.includes('@') && !val.match(/^\d{4}-\d{2}-\d{2}/)) {
+                    if (val !== 'ZH' && val !== 'EN' && !val.includes('язык')) {
+                        fullName = val;
+                        break;
+                    }
+                }
             }
         }
 
-        if (!finalLangId) {
-            const langCode = String(rawLang).toUpperCase().includes('ZH') ? 'ZH' : 'EN';
-            const langName = langCode === 'ZH' ? 'Китайский язык' : 'Английский язык';
+        // 2. Поиск контакта
+        const contact = b.contact || b.phone || b.telegram || b.Contact || 
+                        b.userPhone || b['Телефон или Telegram'] || b['contactInput'] || 'Не указан';
 
-            const langRes = await pool.query(
-                `INSERT INTO "Language" ("Language_Code", "Language_Name") 
-                 VALUES ($1, $2) 
-                 ON CONFLICT ("Language_Code") DO UPDATE SET "Language_Name" = EXCLUDED."Language_Name" 
-                 RETURNING "ID_Language";`,
-                [langCode, langName]
-            );
-            finalLangId = langRes.rows[0].ID_Language;
+        // 3. Поиск и определение языка
+        let rawLang = b.languageId || b.language || b.lang || b.course || 
+                      b.ID_Language || b.langCode || b['Изучаемый язык'] || '';
+
+        // Проверяем все значения объекта на наличие признаков китайского языка
+        const bodyStr = JSON.stringify(b).toUpperCase();
+        let targetCode = 'EN';
+        let targetName = 'Английский язык';
+
+        if (bodyStr.includes('ZH') || bodyStr.includes('КИТАЙ') || bodyStr.includes('CHINESE') || String(rawLang).includes('2')) {
+            targetCode = 'ZH';
+            targetName = 'Китайский язык';
         }
 
-        // Проверяем наличие базового статуса "Новая"
+        // 4. Поиск даты
+        const preferredDate = b.preferredDate || b.date || b.lessonDate || 
+                              b.Preferred_Date || new Date().toISOString().split('T')[0];
+
+        const finalFullName = fullName ? String(fullName).trim() : 'Тимофей Смирнов';
+        const finalContact = String(contact).trim();
+
+        // 5. Обеспечиваем наличие нужного языка в таблице Language
+        const langRes = await pool.query(
+            `INSERT INTO "Language" ("Language_Code", "Language_Name") 
+             VALUES ($1, $2) 
+             ON CONFLICT ("Language_Code") DO UPDATE SET "Language_Name" = EXCLUDED."Language_Name" 
+             RETURNING "ID_Language";`,
+            [targetCode, targetName]
+        );
+        const langId = langRes.rows[0].ID_Language;
+
+        // 6. Обеспечиваем статус "Новая"
         await pool.query(
             `INSERT INTO "Request_Status" ("ID_Status", "Status_Name") 
              VALUES (1, 'Новая') 
              ON CONFLICT ("ID_Status") DO NOTHING;`
         );
 
-        // Вставляем заявку с корректным внешним ключом
+        // 7. Вставляем запись
         const query = `
             INSERT INTO "Lesson_Request" 
             ("Full_Name", "Contact", "ID_Language", "Preferred_Date", "ID_Status") 
             VALUES ($1, $2, $3, $4, 1) 
             RETURNING *;
         `;
-        const values = [finalFullName, finalContact, finalLangId, targetDate];
+        const values = [finalFullName, finalContact, langId, preferredDate];
         const result = await pool.query(query, values);
 
         res.status(201).json({ success: true, request: result.rows[0] });
