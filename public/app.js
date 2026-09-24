@@ -347,9 +347,9 @@ async function loadCrmTable() {
     renderCrmRows(data);
   } catch (err) {
     allCrmData = [
-      { ID_Request: 101, Full_Name: 'Тимофей Смирнов', Contact: '+7 (915) 926-82-08', Language_Name: 'Китайский язык', Preferred_Date: '2026-09-24', Status_Name: 'Новая', Teacher_Name: 'Ван Ли' },
-      { ID_Request: 102, Full_Name: 'Елена Васильева', Contact: 'elena@example.com', Language_Name: 'Китайский язык', Preferred_Date: '2026-10-19', Status_Name: 'В обработке', Teacher_Name: 'Ван Ли' },
-      { ID_Request: 103, Full_Name: 'Дмитрий Кузнецов', Contact: '+7 (905) 555-44-11', Language_Name: 'Английский язык', Preferred_Date: '2026-10-20', Status_Name: 'Подтверждена', Teacher_Name: 'Смирнова А. В.' }
+      { ID_Request: 101, Full_Name: 'Тимофей Смирнов', Contact: '+7 (915) 926-82-08', Language_Name: 'Китайский язык', Preferred_Date: '2026-09-24', Status_Name: 'Новая', Teacher_Name: 'Ван Ли (王丽)' },
+      { ID_Request: 102, Full_Name: 'Елена Васильева', Contact: 'elena@example.com', Language_Name: 'Китайский язык', Preferred_Date: '2026-10-19', Status_Name: 'В обработке', Teacher_Name: 'Ван Ли (王丽)' },
+      { ID_Request: 103, Full_Name: 'Дмитрий Кузнецов', Contact: '+7 (905) 555-44-11', Language_Name: 'Английский язык', Preferred_Date: '2026-10-20', Status_Name: 'Подтверждена', Teacher_Name: 'Анна Смирнова' }
     ];
     renderCrmRows(allCrmData);
   }
@@ -359,23 +359,36 @@ function renderCrmRows(items) {
   var tbody = document.getElementById('crm-tbody');
   if (!tbody) return;
   if (!items || items.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:20px;">Заявок не обнаружено</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:20px;">Заявок не обнаружено</td></tr>';
     return;
   }
+
   tbody.innerHTML = items.map(function(item) {
     var stClass = 'st-new';
     if (item.Status_Name === 'В обработке') stClass = 'st-proc';
     if (item.Status_Name === 'Подтверждена') stClass = 'st-ok';
 
+    // Автоматическое определение преподавателя по языку
+    var isZh = (item.Language_Name && item.Language_Name.indexOf('Китай') !== -1) || item.Language_Code === 'ZH';
+    var teacher = item.Teacher_Name;
+    if (!teacher || teacher === 'Не назначен' || (isZh && teacher === 'Анна Смирнова')) {
+      teacher = isZh ? 'Ван Ли (王丽)' : 'Анна Смирнова';
+    }
+
+    var isConfirmed = item.Status_Name === 'Подтверждена';
+    var actionBtn = isConfirmed 
+      ? '<span style="color:#10B981; font-weight:700;">✓ Одобрено</span>' 
+      : '<button class="btn-action-small" onclick="quickConfirm(' + item.ID_Request + ')">Одобрить ✓</button>';
+
+    // Ровно 7 колонок: ID, Студент/Контакт, Язык, Дата занятия, Статус в БД, Преподаватель, Действие
     return '<tr>' +
       '<td><strong>#' + item.ID_Request + '</strong></td>' +
-      '<td><strong>' + item.Full_Name + '</strong></td>' +
-      '<td><span style="color:#64748B;">' + item.Contact + '</span></td>' +
-      '<td><span class="chip">' + item.Language_Name + '</span></td>' +
-      '<td>' + item.Preferred_Date + '</td>' +
+      '<td><strong>' + item.Full_Name + '</strong><br><small style="color:#64748B;">' + item.Contact + '</small></td>' +
+      '<td><span class="chip">' + (item.Language_Name || 'Английский язык') + '</span></td>' +
+      '<td>' + (item.Preferred_Date || '—') + '</td>' +
       '<td><span class="badge-status ' + stClass + '">● ' + item.Status_Name + '</span></td>' +
-      '<td>' + item.Teacher_Name + '</td>' +
-      '<td><button class="btn-action-small" onclick="quickConfirm(' + item.ID_Request + ')">Одобрить ✓</button></td>' +
+      '<td>' + teacher + '</td>' +
+      '<td>' + actionBtn + '</td>' +
     '</tr>';
   }).join('');
 
@@ -410,7 +423,7 @@ async function quickConfirm(id) {
       var res = await fetch('/api/requests/' + id + '/status', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status_id: 3 }) // 3 = Подтверждена в БД
+        body: JSON.stringify({ status_id: 2 }) // 2 = Подтверждена в БД
       });
       if (res.ok) {
         item.Status_Name = 'Подтверждена';
