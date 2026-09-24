@@ -365,20 +365,18 @@ function recalcPrice() {
 function applyCalcToForm() {
   scrollToSection('booking-section');
   var langSel = document.getElementById('lead-lang');
-  var notes = document.getElementById('lead-notes');
   if (langSel) {
     langSel.value = (calcState.lang === 'zh') ? '2' : '1';
     syncTeacherSelect();
   }
-  if (notes) notes.value = 'Выбран расчет: ' + calcState.lessons + ' уроков, формат ' + (calcState.format === 'indiv' ? 'Индивидуально' : 'Группа');
-  showToast('Параметры калькулятора перенесены в форму!');
+  showToast('Параметры курса зафиксированы!');
 }
 
+// Выбор преподавателя по кнопке карточки БЕЗ загрязнения поля заметок
 function pickTeacher(name, langId) {
   scrollToSection('booking-section');
   var langSel = document.getElementById('lead-lang');
   var teacherSel = document.getElementById('lead-teacher');
-  var notes = document.getElementById('lead-notes');
 
   if (langSel) {
     langSel.value = langId;
@@ -386,9 +384,6 @@ function pickTeacher(name, langId) {
   }
   if (teacherSel) {
     teacherSel.value = name;
-  }
-  if (notes && !notes.value) {
-    notes.value = 'Запись к преподавателю: ' + name;
   }
   showToast('Выбран преподаватель: ' + name);
 }
@@ -399,9 +394,9 @@ function syncTeacherSelect() {
   if (!langSel || !teacherSel) return;
 
   if (langSel.value === '2') {
-    teacherSel.value = 'Ван Ли (王丽)';
+    teacherSel.value = 'Джеки Чан (成龙)';
   } else {
-    if (teacherSel.value === 'Ван Ли (王丽)') {
+    if (teacherSel.value === 'Джеки Чан (成龙)') {
       teacherSel.value = 'Анна Смирнова';
     }
   }
@@ -457,8 +452,7 @@ async function loadCrmTable() {
   } catch (err) {
     allCrmData = [
       { ID_Request: 101, Full_Name: 'Тимофей Смирнов', Contact: '+7 (915) 926-82-08', Notes: 'Подготовка к IELTS', Language_Name: 'Английский язык', Preferred_Date: '2026-09-24', Status_Name: 'Новая', Teacher_Name: 'Марк Ковалёв' },
-      { ID_Request: 102, Full_Name: 'Елена Васильева', Contact: 'elena@example.com', Notes: 'Китайский с нуля', Language_Name: 'Китайский язык', Preferred_Date: '2026-10-19', Status_Name: 'В обработке', Teacher_Name: 'Ван Ли (王丽)' },
-      { ID_Request: 103, Full_Name: 'Дмитрий Кузнецов', Contact: '+7 (905) 555-44-11', Notes: 'Разговорный курс', Language_Name: 'Английский язык', Preferred_Date: '2026-10-20', Status_Name: 'Подтверждена', Teacher_Name: 'Анна Смирнова' }
+      { ID_Request: 102, Full_Name: 'Елена Васильева', Contact: 'elena@example.com', Notes: 'Китайский с нуля', Language_Name: 'Китайский язык', Preferred_Date: '2026-10-19', Status_Name: 'Подтверждена', Teacher_Name: 'Джеки Чан (成龙)' }
     ];
     renderCrmRows(allCrmData);
   }
@@ -473,17 +467,16 @@ function renderCrmRows(items) {
   }
 
   tbody.innerHTML = items.map(function(item) {
-    var stClass = 'st-new';
-    if (item.Status_Name === 'В обработке') stClass = 'st-proc';
-    if (item.Status_Name === 'Подтверждена') stClass = 'st-ok';
+    var isConfirmed = item.ID_Status === 2 || item.Status_Name === 'Подтверждена';
+    var stClass = isConfirmed ? 'st-ok' : (item.Status_Name === 'В обработке' ? 'st-proc' : 'st-new');
+    var stName = isConfirmed ? 'Подтверждена' : (item.Status_Name || 'Новая');
 
     var teacher = item.Teacher_Name;
     if (!teacher || teacher === 'Не назначен') {
       var isZh = (item.Language_Name && item.Language_Name.indexOf('Китай') !== -1) || item.Language_Code === 'ZH';
-      teacher = isZh ? 'Ван Ли (王丽)' : 'Анна Смирнова';
+      teacher = isZh ? 'Джеки Чан (成龙)' : 'Анна Смирнова';
     }
 
-    var isConfirmed = item.Status_Name === 'Подтверждена';
     var actionBtn = isConfirmed 
       ? '<span style="color:#10B981; font-weight:700;">✓ Одобрено</span>' 
       : '<button class="btn-action-small" onclick="quickConfirm(' + item.ID_Request + ')">Одобрить ✓</button>';
@@ -497,7 +490,7 @@ function renderCrmRows(items) {
       '<td><strong>' + item.Full_Name + '</strong><br><small style="color:#64748B;">' + item.Contact + '</small>' + notesHtml + '</td>' +
       '<td><span class="chip">' + (item.Language_Name || 'Английский язык') + '</span></td>' +
       '<td>' + (item.Preferred_Date || '—') + '</td>' +
-      '<td><span class="badge-status ' + stClass + '">● ' + item.Status_Name + '</span></td>' +
+      '<td><span class="badge-status ' + stClass + '">● ' + stName + '</span></td>' +
       '<td><strong>' + teacher + '</strong></td>' +
       '<td>' + actionBtn + '</td>' +
     '</tr>';
@@ -509,8 +502,8 @@ function renderCrmRows(items) {
   var convEl = document.getElementById('crm-stat-conversion');
 
   var total = items.length;
-  var confirmed = items.filter(function(x) { return x.Status_Name === 'Подтверждена'; }).length;
-  var newCount = items.filter(function(x) { return x.Status_Name === 'Новая'; }).length;
+  var confirmed = items.filter(function(x) { return x.ID_Status === 2 || x.Status_Name === 'Подтверждена'; }).length;
+  var newCount = total - confirmed;
 
   if (tEl) tEl.innerText = total;
   if (nEl) nEl.innerText = newCount;
@@ -536,23 +529,24 @@ function filterByLang(langKey) {
   }
 }
 
+// Персистентное сохранение статуса заявки в БД
 async function quickConfirm(id) {
+  try {
+    var res = await fetch('/api/requests/' + id + '/status', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status_id: 2 })
+    });
+    if (res.ok) {
+      showToast('Заявка #' + id + ' подтверждена в базе данных PostgreSQL!');
+      await loadCrmTable();
+      return;
+    }
+  } catch (e) {}
+
   var item = allCrmData.find(function(x) { return x.ID_Request === id; });
   if (item) {
-    try {
-      var res = await fetch('/api/requests/' + id + '/status', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status_id: 2 })
-      });
-      if (res.ok) {
-        item.Status_Name = 'Подтверждена';
-        renderCrmRows(allCrmData);
-        showToast('Заявка #' + id + ' подтверждена в базе данных PostgreSQL!');
-        return;
-      }
-    } catch (e) {}
-
+    item.ID_Status = 2;
     item.Status_Name = 'Подтверждена';
     renderCrmRows(allCrmData);
     showToast('Заявка #' + id + ' переведена в статус «Подтверждена»');
