@@ -1,4 +1,38 @@
-// ==================== УПРАВЛЕНИЕ ТЕМОЙ (LIGHT / DARK) ====================
+// ==================== МУЛЬТИЯЗЫЧНЫЙ СЛОВАРЬ (RU / EN / ZH) ====================
+const translations = {
+  RU: {
+    heroPill: "• 2 профильных языка (EN / ZH)",
+    heroTitle: "Изучайте английский и китайский языки онлайн и в группах",
+    heroDesc: "Эффективные методики подготовки к международным экзаменам HSK и IELTS. Индивидуальный график с квалифицированными преподавателями.",
+    bookBtn: "Записаться на пробный урок",
+    coursesBtn: "Выбрать курс",
+    coursesTitle: "Направления обучения",
+    bookingTitle: "Запись на вводное занятие",
+    bookingSub: "Заполните поля, и мы подберем программу под ваш уровень"
+  },
+  EN: {
+    heroPill: "• 2 specialized languages (EN / ZH)",
+    heroTitle: "Learn English & Chinese Online and in Groups",
+    heroDesc: "Effective preparation for HSK and IELTS exams. Flexible schedules with certified native and bilingual teachers.",
+    bookBtn: "Book Free Trial",
+    coursesBtn: "Explore Courses",
+    coursesTitle: "Study Programs",
+    bookingTitle: "Book an Introductory Lesson",
+    bookingSub: "Fill in the details, and we will choose the right level for you"
+  },
+  ZH: {
+    heroPill: "• 两个专业语种 (英语 / 中文)",
+    heroTitle: "在线及小组学习英语与中文课程",
+    heroDesc: "针对HSK与雅思国际考试的高效辅导方案，资深专业教师授课，定制专属学习计划。",
+    bookBtn: "预约试听课",
+    coursesBtn: "查看课程",
+    coursesTitle: "教学方向",
+    bookingTitle: "预约入门试听课",
+    bookingSub: "填写信息，我们将为您匹配最合适的学习阶段"
+  }
+};
+
+// ==================== ПЕРЕКЛЮЧЕНИЕ ТЕМЫ ====================
 function initTheme() {
   const savedTheme = localStorage.getItem('lingva_theme');
   if (savedTheme === 'dark') {
@@ -23,41 +57,116 @@ function updateThemeButton(isDark) {
   if (text) text.innerText = isDark ? 'Светлая' : 'Тёмная';
 }
 
-window.toggleTheme = toggleTheme;
-
-// ==================== ВЫБОР РОЛИ И КУРСА ====================
+// ==================== ПЕРЕКЛЮЧЕНИЕ РОЛЕЙ ====================
 function setRole(role) {
-  const userView = document.getElementById('view-user');
+  const guestView = document.getElementById('view-guest');
+  const studentView = document.getElementById('view-student');
   const crmView = document.getElementById('view-crm');
   const buttons = document.querySelectorAll('.btn-role');
 
-  buttons.forEach(btn => btn.classList.remove('active'));
+  buttons.forEach(b => b.classList.remove('active'));
 
-  if (role === 'crm') {
-    userView.style.display = 'none';
-    crmView.classList.add('active');
-    buttons[1].classList.add('active');
-    loadCrmTable();
-  } else {
-    userView.style.display = 'block';
+  if (role === 'guest') {
+    guestView.style.display = 'block';
+    studentView.style.display = 'none';
     crmView.classList.remove('active');
-    buttons[0].classList.add('active');
+    document.getElementById('btn-role-guest').classList.add('active');
+  } else if (role === 'student') {
+    guestView.style.display = 'none';
+    studentView.style.display = 'block';
+    crmView.classList.remove('active');
+    document.getElementById('btn-role-student').classList.add('active');
+  } else if (role === 'crm') {
+    guestView.style.display = 'none';
+    studentView.style.display = 'none';
+    crmView.classList.add('active');
+    document.getElementById('btn-role-crm').classList.add('active');
+    loadCrmTable();
   }
 }
 
-function selectCourse(langId) {
-  const select = document.getElementById('lead-lang');
-  if (select) select.value = langId;
-}
-
+// ==================== ПЕРЕКЛЮЧЕНИЕ ЯЗЫКОВ ====================
 function switchLang(lang) {
   document.querySelectorAll('.lang-btn').forEach(btn => {
     btn.classList.toggle('active', btn.innerText === lang);
   });
+
+  const t = translations[lang] || translations.RU;
+  document.getElementById('txt-hero-pill').innerText = t.heroPill;
+  document.getElementById('txt-hero-title').innerText = t.heroTitle;
+  document.getElementById('txt-hero-desc').innerText = t.heroDesc;
+  document.getElementById('btn-hero-book').innerText = t.bookBtn;
+  document.getElementById('btn-hero-courses').innerText = t.coursesBtn;
+  document.getElementById('txt-courses-title').innerText = t.coursesTitle;
+  document.getElementById('txt-booking-title').innerText = t.bookingTitle;
+  document.getElementById('txt-booking-sub').innerText = t.bookingSub;
+
   showToast(`Локализация интерфейса: ${lang}`);
 }
 
-// ==================== РАБОТА С ФОРМОЙ И API ====================
+// ==================== КАЛЬКУЛЯТОР СТОИМОСТИ ====================
+function calculatePrice() {
+  const lang = document.getElementById('calc-lang').value;
+  const format = document.getElementById('calc-format').value;
+  const count = parseInt(document.getElementById('calc-range').value, 10);
+
+  document.getElementById('calc-lessons-count').innerText = count;
+
+  let baseRate = lang === 'zh' ? 1500 : 1200;
+  if (format === 'group') {
+    baseRate = Math.round(baseRate * 0.7);
+  }
+
+  let discount = 0;
+  if (count >= 32) discount = 0.20;
+  else if (count >= 24) discount = 0.15;
+  else if (count >= 16) discount = 0.10;
+  else if (count >= 8) discount = 0.05;
+
+  const total = Math.round(count * baseRate * (1 - discount));
+  const perLesson = Math.round(total / count);
+
+  document.getElementById('calc-total-price').innerText = `${total.toLocaleString('ru-RU')} ₽`;
+  document.getElementById('calc-per-lesson').innerText = `${perLesson.toLocaleString('ru-RU')} ₽ / урок`;
+
+  const badge = document.getElementById('calc-discount-badge');
+  if (discount > 0) {
+    badge.style.display = 'inline-block';
+    badge.innerText = `Скидка ${discount * 100}%`;
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+// ==================== ТЕСТ НА УРОВЕНЬ ====================
+function checkQuiz() {
+  const selected = document.querySelector('input[name="quiz-opt"]:checked');
+  const resEl = document.getElementById('quiz-result');
+  resEl.style.display = 'block';
+
+  if (!selected) {
+    resEl.style.color = '#f59e0b';
+    resEl.innerText = 'Пожалуйста, выберите один из вариантов ответа.';
+    return;
+  }
+
+  if (selected.value === 'goes') {
+    resEl.style.color = '#10b981';
+    resEl.innerText = '✓ Верно! Правило Present Simple для 3-го лица единственного числа (she goes). Ваш уровень: Pre-Intermediate (A2) или выше.';
+  } else {
+    resEl.style.color = '#ef4444';
+    resEl.innerText = '✕ Неверно. В Present Simple с местоимением she глагол принимает окончание -es (goes). Рекомендуем начать с уровня Beginner (A1).';
+  }
+}
+
+// ==================== ФОРМА И СИНХРОНИЗАЦИЯ С POSTGRESQL ====================
+function selectCourse(langId) {
+  const select = document.getElementById('lead-lang');
+  if (select) select.value = langId;
+  const bookingSec = document.getElementById('booking');
+  if (bookingSec) bookingSec.scrollIntoView({ behavior: 'smooth' });
+}
+
 async function handleFormSubmit(e) {
   if (e && e.preventDefault) e.preventDefault();
 
@@ -193,14 +302,18 @@ function escapeHtml(str) {
     .replace(/"/g, '&quot;');
 }
 
-window.handleFormSubmit = handleFormSubmit;
+window.toggleTheme = toggleTheme;
 window.setRole = setRole;
-window.selectCourse = selectCourse;
 window.switchLang = switchLang;
+window.calculatePrice = calculatePrice;
+window.checkQuiz = checkQuiz;
+window.selectCourse = selectCourse;
+window.handleFormSubmit = handleFormSubmit;
 window.loadCrmTable = loadCrmTable;
 window.quickConfirm = quickConfirm;
 
 document.addEventListener('DOMContentLoaded', () => {
   initTheme();
+  calculatePrice();
   setDefaultDate();
 });
