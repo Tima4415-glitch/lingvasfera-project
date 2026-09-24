@@ -102,3 +102,4 @@ app.patch('/api/requests/:id/status', async (req, res) => {
 app.listen(PORT, () => {
     console.log(`Сервер языковой школы «ЛингваСфера» запущен на http://localhost:${PORT}`);
 });
+module.exports = app;
