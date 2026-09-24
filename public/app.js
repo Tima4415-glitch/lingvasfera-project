@@ -73,15 +73,55 @@ var teacherProfiles = {
   }
 };
 
+// ==================== ПЕРЕКЛЮЧЕНИЕ РОЛЕЙ (ПОЛЬЗОВАТЕЛЬ / УЧЕНИК / ПРЕПОДАВАТЕЛЬ / CRM) ====================
+function switchRole(roleKey) {
+  // 1. Скрываем все возможные экраны через класс active
+  var panes = document.querySelectorAll('.view-pane');
+  for (var j = 0; j < panes.length; j++) {
+    panes[j].classList.remove('active');
+    panes[j].style.removeProperty('display'); // Сбрасываем инлайн display
+  }
+
+  // 2. Снимаем подсветку со всех кнопок ролей
+  var roleBtns = document.querySelectorAll('.role-btn');
+  for (var i = 0; i < roleBtns.length; i++) {
+    roleBtns[i].classList.remove('active');
+  }
+
+  // 3. Активируем нужную кнопку
+  var activeBtn = document.getElementById('btn-role-' + roleKey);
+  if (activeBtn) activeBtn.classList.add('active');
+
+  // 4. Показываем нужный экран
+  var targetId = 'view-' + roleKey;
+  var activePane = document.getElementById(targetId);
+  if (activePane) {
+    activePane.classList.add('active');
+  }
+
+  // 5. Если выбран администратор — сразу подгружаем свежие данные из PostgreSQL
+  if (roleKey === 'admin') {
+    loadCrmTable();
+  }
+
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
 // ==================== ПЕРЕХОД НА ОТДЕЛЬНЫЙ ПРОФИЛЬ ====================
 function openTeacherPage(key) {
   var t = teacherProfiles[key];
   if (!t) return;
 
-  // Скрываем витрину и показываем экран профиля
-  document.getElementById('view-guest').style.display = 'none';
+  // Скрываем все экраны
+  var panes = document.querySelectorAll('.view-pane');
+  for (var j = 0; j < panes.length; j++) {
+    panes[j].classList.remove('active');
+    panes[j].style.removeProperty('display');
+  }
+
+  // Показываем профиль
   var profileView = document.getElementById('view-teacher-profile');
-  profileView.classList.add('active');
+  if (profileView) profileView.classList.add('active');
 
   // Заполняем данными
   document.getElementById('p-photo').src = t.photo;
@@ -112,7 +152,6 @@ function openTeacherPage(key) {
     revBox.innerHTML = '<strong>' + t.review.title + '</strong><p>' + t.review.text + '</p><small style="color:var(--text-muted);">' + t.review.author + '</small>';
   }
 
-  // Кнопка записи из профиля
   var bookBtn = document.getElementById('p-book-btn');
   if (bookBtn) {
     bookBtn.onclick = function() {
@@ -125,9 +164,7 @@ function openTeacherPage(key) {
 }
 
 function backToMain() {
-  document.getElementById('view-teacher-profile').classList.remove('active');
-  document.getElementById('view-guest').style.display = 'block';
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+  switchRole('guest');
 }
 
 // ==================== УПРАВЛЕНИЕ ТЕМОЙ ====================
@@ -331,34 +368,6 @@ function changeLang(lang) {
   safeSet('f-submit-btn', t.fSubmitBtn, false);
 }
 
-function switchRole(roleKey) {
-  // Возвращаем видимость гостевого экрана если уходим из профиля
-  document.getElementById('view-teacher-profile').classList.remove('active');
-  document.getElementById('view-guest').style.display = 'block';
-
-  var roleBtns = document.querySelectorAll('.role-btn');
-  for (var i = 0; i < roleBtns.length; i++) {
-    roleBtns[i].classList.remove('active');
-  }
-
-  var panes = document.querySelectorAll('.view-pane');
-  for (var j = 0; j < panes.length; j++) {
-    panes[j].classList.remove('active');
-  }
-
-  var activeBtn = document.getElementById('btn-role-' + roleKey);
-  if (activeBtn) activeBtn.classList.add('active');
-
-  var activePane = document.getElementById('view-' + roleKey);
-  if (activePane) activePane.classList.add('active');
-
-  if (roleKey === 'admin') {
-    loadCrmTable();
-  }
-
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-}
-
 function scrollToSection(id) {
   switchRole('guest');
   var el = document.getElementById(id);
@@ -501,6 +510,7 @@ function applyCalcToForm() {
   showToast('Параметры курса зафиксированы!');
 }
 
+// Выбор преподавателя БЕЗ загрязнения поля заметок
 function pickTeacher(name, langId) {
   scrollToSection('booking-section');
   var langSel = document.getElementById('lead-lang');
