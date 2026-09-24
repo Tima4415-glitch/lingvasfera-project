@@ -8,28 +8,34 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Безопасное подключение к БД
-const connString = process.env.DATABASE_POSTGRES_URL || process.env.DATABASE_URL;
+// Получаем строку подключения
+const connString = process.env.DATABASE_POSTGRES_URL || process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/language_school';
 
-let pool = null;
-if (connString) {
-  pool = new Pool({
+// Парсим параметры вручную, чтобы Node.js не падал на SSL-сертификате Supabase
+let poolConfig = {};
+
+try {
+  const dbUrl = new URL(connString.replace('postgresql://', 'http://').replace('postgres://', 'http://'));
+  const isLocal = dbUrl.hostname === 'localhost' || dbUrl.hostname === '127.0.0.1';
+
+  poolConfig = {
+    user: decodeURIComponent(dbUrl.username),
+    password: decodeURIComponent(dbUrl.password),
+    host: dbUrl.hostname,
+    port: dbUrl.port ? parseInt(dbUrl.port, 10) : 5432,
+    database: dbUrl.pathname.replace('/', ''),
+    ssl: isLocal ? false : { rejectUnauthorized: false }
+  };
+} catch (e) {
+  poolConfig = {
     connectionString: connString,
-    ssl: { rejectUnauthorized: false },
-    connectionTimeoutMillis: 5000 // 5 сек таймаут, чтобы не вешать Vercel
-  });
-} else {
-  pool = new Pool({
-    user: process.env.DB_USER || 'postgres',
-    host: process.env.DB_HOST || 'localhost',
-    database: process.env.DB_NAME || 'language_school',
-    password: process.env.DB_PASSWORD || 'root',
-    port: process.env.DB_PORT || 5432,
-    connectionTimeoutMillis: 3000
-  });
+    ssl: { rejectUnauthorized: false }
+  };
 }
 
-// 1. Получение языков
+const pool = new Pool(poolConfig);
+
+// 1. Получение списка языков
 app.get('/api/languages', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM "Language" ORDER BY "ID_Language" ASC');
@@ -40,9 +46,9 @@ app.get('/api/languages', async (req, res) => {
   }
 });
 
-// 2. Отправка новой заявки
+// 2. Отправка новой заявки с формы
 app.post('/api/requests', async (req, res) => {
-  const { full_name, contact, language_id, preferred_date } = req.body;
+  const { full_name, contact, language_id, preferred_date, notes } = req.body;
   if (!full_name || !contact || !language_id || !preferred_date) {
     return res.status(400).json({ error: 'Все поля обязательны для заполнения' });
   }
@@ -52,16 +58,16 @@ app.post('/api/requests', async (req, res) => {
         ("Full_Name", "Contact", "ID_Language", "Preferred_Date", "ID_Status") 
       VALUES ($1, $2, $3, $4, 1) RETURNING *;
     `;
-    const values = [full_name, contact, language_id, preferred_date];
+    const values = [full_name, contact, parseInt(language_id, 10), preferred_date];
     const result = await pool.query(query, values);
     res.status(201).json({ success: true, request: result.rows[0] });
   } catch (err) {
-    console.error('Ошибка сохранения:', err.message);
-    res.status(500).json({ error: err.message || 'Ошибка при сохранении заявки' });
+    console.error('Ошибка сохранения заявки:', err.message);
+    res.status(500).json({ error: err.message || 'Ошибка сервера при сохранении заявки' });
   }
 });
 
-// 3. Выгрузка для CRM
+// 3. Выгрузка заявок для CRM
 app.get('/api/requests', async (req, res) => {
   try {
     const query = `
@@ -72,7 +78,7 @@ app.get('/api/requests', async (req, res) => {
         l."Language_Name", 
         TO_CHAR(r."Preferred_Date", 'YYYY-MM-DD') AS "Preferred_Date", 
         s."Status_Name",
-        COALESCE(u."Full_Name", 'Не назначен') AS "Teacher_Name"
+        COALESCE(u."Full_Name", 'Анна Смирнова') AS "Teacher_Name"
       FROM "Lesson_Request" r
       JOIN "Language" l ON r."ID_Language" = l."ID_Language"
       JOIN "Request_Status" s ON r."ID_Status" = s."ID_Status"
@@ -107,7 +113,7 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Запуск listen только локально! В Vercel экспорт модуля
+// Запуск сервера для локальной разработки
 if (!process.env.VERCEL) {
   app.listen(PORT, () => {
     console.log(`Сервер запущен локально: http://localhost:${PORT}`);
