@@ -9,7 +9,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Строка подключения к PostgreSQL
+// Подключение к PostgreSQL Supabase
 const connString = process.env.DATABASE_POSTGRES_URL || 
                    process.env.DATABASE_URL || 
                    process.env.POSTGRES_URL || 
@@ -29,25 +29,32 @@ const pool = new Pool({
     }
 });
 
-// Инициализация статусов при старте, чтобы не было ошибок внешних ключей
-async function initDbStatuses() {
+// Инициализация статусов и языков
+async function initDb() {
     try {
         await pool.query(`
             INSERT INTO "Request_Status" ("ID_Status", "Status_Name") 
             VALUES (1, 'Новая'), (2, 'Подтверждена'), (3, 'Отклонена')
-            ON CONFLICT ("ID_Status") DO NOTHING;
+            ON CONFLICT ("ID_Status") DO UPDATE SET "Status_Name" = EXCLUDED."Status_Name";
+        `);
+        await pool.query(`
+            INSERT INTO "Language" ("Language_Code", "Language_Name") 
+            VALUES ('ZH', 'Китайский язык'), ('EN', 'Английский язык')
+            ON CONFLICT ("Language_Code") DO NOTHING;
         `);
     } catch (e) {
-        // Таблица может иметь другую структуру, пропускаем
+        console.warn('Init DB warning:', e.message);
     }
 }
-initDbStatuses();
+initDb();
 
 // 1. Создание новой заявки
 app.post('/api/requests', async (req, res) => {
     try {
         const b = req.body || {};
+        console.log('Входящие данные заявки:', JSON.stringify(b));
 
+        // Имя
         let fullName = b.fullName || b.name || b.studentName || b.clientName || 
                        b.userName || b.fio || b.Full_Name || b['Ваше имя'] || 
                        b['nameInput'] || b['fullNameInput'] || b['client_name'];
@@ -55,7 +62,7 @@ app.post('/api/requests', async (req, res) => {
         if (!fullName) {
             for (const [key, val] of Object.entries(b)) {
                 if (typeof val === 'string' && val.length > 1 && !val.includes('+') && !val.includes('@') && !val.match(/^\d{4}-\d{2}-\d{2}/)) {
-                    if (val !== 'ZH' && val !== 'EN' && !val.includes('язык')) {
+                    if (!['ZH', 'EN', '1', '2'].includes(val) && !val.toLowerCase().includes('язык')) {
                         fullName = val;
                         break;
                     }
@@ -63,17 +70,25 @@ app.post('/api/requests', async (req, res) => {
             }
         }
 
+        // Телефон / Telegram
         const contact = b.contact || b.phone || b.telegram || b.Contact || 
                         b.userPhone || b['Телефон или Telegram'] || b['contactInput'] || 'Не указан';
 
-        let rawLang = b.languageId || b.language || b.lang || b.course || 
-                      b.ID_Language || b.langCode || b['Изучаемый язык'] || '';
-
-        const bodyStr = JSON.stringify(b).toUpperCase();
+        // Язык: проверяем весь запрос целиком
+        const rawString = JSON.stringify(b).toUpperCase();
         let targetCode = 'EN';
         let targetName = 'Английский язык';
 
-        if (bodyStr.includes('ZH') || bodyStr.includes('КИТАЙ') || bodyStr.includes('CHINESE') || String(rawLang).includes('2')) {
+        // Если в теле запроса есть ZH, КИТАЙ, CHINESE или в выпадающем списке выбран 2-й пункт
+        if (
+            rawString.includes('ZH') || 
+            rawString.includes('КИТАЙ') || 
+            rawString.includes('CHINESE') || 
+            String(b.languageId) === '2' ||
+            String(b.language) === '2' ||
+            String(b.lang) === '2' ||
+            String(b.ID_Language) === '2'
+        ) {
             targetCode = 'ZH';
             targetName = 'Китайский язык';
         }
@@ -84,17 +99,19 @@ app.post('/api/requests', async (req, res) => {
         const finalFullName = fullName ? String(fullName).trim() : 'Тимофей Смирнов';
         const finalContact = String(contact).trim();
 
-        // Проверяем / создаем язык
-        const langRes = await pool.query(
-            `INSERT INTO "Language" ("Language_Code", "Language_Name") 
-             VALUES ($1, $2) 
-             ON CONFLICT ("Language_Code") DO UPDATE SET "Language_Name" = EXCLUDED."Language_Name" 
-             RETURNING "ID_Language";`,
-            [targetCode, targetName]
-        );
-        const langId = langRes.rows[0].ID_Language;
+        // Получаем ID языка
+        let langRes = await pool.query('SELECT "ID_Language" FROM "Language" WHERE "Language_Code" = $1 LIMIT 1;', [targetCode]);
+        let langId;
+        if (langRes.rows.length > 0) {
+            langId = langRes.rows[0].ID_Language;
+        } else {
+            const inserted = await pool.query(
+                `INSERT INTO "Language" ("Language_Code", "Language_Name") VALUES ($1, $2) RETURNING "ID_Language";`,
+                [targetCode, targetName]
+            );
+            langId = inserted.rows[0].ID_Language;
+        }
 
-        // Вставляем заявку со статусом 1 (Новая)
         const query = `
             INSERT INTO "Lesson_Request" 
             ("Full_Name", "Contact", "ID_Language", "Preferred_Date", "ID_Status") 
@@ -106,19 +123,19 @@ app.post('/api/requests', async (req, res) => {
 
         res.status(201).json({ success: true, request: result.rows[0] });
     } catch (err) {
-        console.error('Database insertion error:', err);
+        console.error('Ошибка вставки в БД:', err);
         res.status(500).json({ error: err.message });
     }
 });
 
-// 2. Получение списка заявок для CRM (с преподавателем и статусом)
+// 2. Получение списка заявок для CRM
 app.get('/api/requests', async (req, res) => {
     try {
         const query = `
-            SELECT lr."ID_Request", lr."Full_Name", lr."Contact", l."Language_Name", 
+            SELECT lr."ID_Request", lr."Full_Name", lr."Contact", l."Language_Name", l."Language_Code",
                    lr."Preferred_Date", rs."Status_Name", lr."ID_Status", lr."Created_At",
                    CASE 
-                       WHEN l."Language_Name" ILIKE '%Китай%' THEN 'Ван Ли (王丽)'
+                       WHEN l."Language_Name" ILIKE '%Китай%' OR l."Language_Code" = 'ZH' THEN 'Ван Ли (王丽)'
                        ELSE 'Анна Смирнова'
                    END as "Teacher_Name"
             FROM "Lesson_Request" lr
@@ -128,52 +145,60 @@ app.get('/api/requests', async (req, res) => {
         `;
         const result = await pool.query(query);
 
-        // Формируем поля так, чтобы любой фронтенд нашел преподавателя и статус
-        const rows = result.rows.map(r => ({
-            ...r,
-            id: r.ID_Request,
-            fullName: r.Full_Name,
-            contact: r.Contact,
-            language: r.Language_Name,
-            date: r.Preferred_Date,
-            status: r.Status_Name || (r.ID_Status === 2 ? 'Подтвержден' : 'Новая'),
-            teacher: r.Teacher_Name,
-            teacherName: r.Teacher_Name,
-            Teacher: r.Teacher_Name,
-            Teacher_Name: r.Teacher_Name,
-            assignedTeacher: r.Teacher_Name
-        }));
+        const rows = result.rows.map(r => {
+            const isApproved = r.ID_Status === 2 || (r.Status_Name && r.Status_Name.includes('Подтвержд'));
+            const statusLabel = isApproved ? 'Подтверждена' : 'Новая';
+
+            return {
+                ...r,
+                id: r.ID_Request,
+                fullName: r.Full_Name,
+                contact: r.Contact,
+                language: r.Language_Name,
+                date: r.Preferred_Date,
+                status: statusLabel,
+                Status_Name: statusLabel,
+                teacher: r.Teacher_Name,
+                teacherName: r.Teacher_Name,
+                Teacher: r.Teacher_Name,
+                Teacher_Name: r.Teacher_Name
+            };
+        });
 
         res.status(200).json(rows);
     } catch (err) {
-        console.error('Database fetch error:', err);
+        console.error('Ошибка чтения из БД:', err);
         res.status(500).json({ error: err.message });
     }
 });
 
-// 3. Роут одобрения / изменения статуса заявки (PATCH /api/requests/:id)
-app.all(['/api/requests/:id', '/api/requests/:id/status', '/api/requests/:id/approve'], async (req, res) => {
+// 3. Обновление статуса заявки (Одобрение) - поддерживает все методы и форматы
+const updateStatusHandler = async (req, res) => {
     try {
-        const reqId = parseInt(req.params.id, 10);
-        const newStatus = req.body && req.body.status ? req.body.status : 2;
-        const statusId = typeof newStatus === 'number' ? newStatus : 2; // 2 = Подтверждена / Одобрена
+        const reqId = parseInt(req.params.id || (req.body && (req.body.id || req.body.ID_Request)), 10);
+        if (!reqId) {
+            return res.status(400).json({ error: 'Не указан ID заявки' });
+        }
 
-        // Убедимся, что статус 2 существует
-        try {
-            await pool.query(`INSERT INTO "Request_Status" ("ID_Status", "Status_Name") VALUES (2, 'Подтверждена') ON CONFLICT DO NOTHING;`);
-        } catch (_) {}
-
+        // Статус 2 = Подтверждена
         await pool.query(
-            `UPDATE "Lesson_Request" SET "ID_Status" = $1 WHERE "ID_Request" = $2;`,
-            [statusId, reqId]
+            `UPDATE "Lesson_Request" SET "ID_Status" = 2 WHERE "ID_Request" = $1;`,
+            [reqId]
         );
 
-        res.status(200).json({ success: true, message: 'Статус успешно обновлен в базе данных PostgreSQL!' });
+        console.log(`Заявка #${reqId} успешно переведена в статус 2 (Подтверждена)`);
+        res.status(200).json({ success: true, message: `Заявка #${reqId} подтверждена в базе данных PostgreSQL!` });
     } catch (err) {
-        console.error('Status update error:', err);
+        console.error('Ошибка обновления статуса:', err);
         res.status(500).json({ error: err.message });
     }
-});
+};
+
+app.post('/api/requests/:id/approve', updateStatusHandler);
+app.patch('/api/requests/:id', updateStatusHandler);
+app.put('/api/requests/:id', updateStatusHandler);
+app.post('/api/requests/approve', updateStatusHandler);
+app.patch('/api/requests', updateStatusHandler);
 
 if (process.env.VERCEL !== '1') {
     app.listen(PORT, () => {
