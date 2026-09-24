@@ -1,4 +1,3 @@
-/* Базовые сбросы и шрифты */
 * {
   box-sizing: border-box;
   margin: 0;
@@ -6,508 +5,713 @@
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  background-color: #f8fafc;
-  color: #1e293b;
-  line-height: 1.5;
-  transition: background-color 0.3s ease, color 0.3s ease;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  background-color: #f0f2f5;
+  color: #333333;
+  line-height: 1.4;
+  transition: background-color 0.25s ease, color 0.25s ease;
 }
 
-/* ==================== НАВИГАЦИЯ ==================== */
-header {
+/* ==================== НАВБАР ==================== */
+.navbar {
   background-color: #ffffff;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 12px 24px;
   position: sticky;
   top: 0;
-  z-index: 100;
-  transition: background-color 0.3s ease, border-color 0.3s ease;
+  z-index: 50;
+  transition: background-color 0.25s ease, border-color 0.25s ease;
 }
 
 .nav-container {
-  max-width: 1200px;
+  max-width: 1100px;
   margin: 0 auto;
-  padding: 14px 20px;
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  justify-content: space-between;
 }
 
 .brand {
   display: flex;
   align-items: center;
   gap: 10px;
-  font-weight: 700;
   font-size: 1.25rem;
-  color: #0f172a;
+  font-weight: 700;
+  color: #0066cc;
 }
 
-.brand-badge {
-  background: #2563eb;
-  color: #ffffff;
-  padding: 4px 8px;
-  border-radius: 6px;
-  font-size: 0.9rem;
+.brand-icon {
+  width: 22px;
+  height: 22px;
+  background-color: #0066cc;
+  border-radius: 50%;
+  display: inline-block;
 }
 
-.nav-links {
+.nav-menu {
   display: flex;
-  align-items: center;
-  gap: 20px;
+  gap: 24px;
 }
 
-.nav-links a {
+.nav-link {
   text-decoration: none;
-  color: #64748b;
-  font-weight: 500;
+  color: #4b5563;
   font-size: 0.95rem;
-  transition: color 0.2s;
 }
 
-.nav-links a:hover {
-  color: #2563eb;
+.nav-link:hover {
+  color: #0066cc;
 }
 
 .nav-actions {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
+}
+
+/* Переключатели языков */
+.lang-switch {
+  display: flex;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid #0066cc;
 }
 
 .lang-btn {
-  background: #f1f5f9;
-  border: 1px solid #cbd5e1;
-  padding: 5px 10px;
-  border-radius: 6px;
-  cursor: pointer;
+  background: #ffffff;
+  color: #0066cc;
+  border: none;
+  padding: 4px 12px;
   font-size: 0.85rem;
   font-weight: 600;
-  color: #475569;
+  cursor: pointer;
 }
 
 .lang-btn.active {
-  background: #2563eb;
+  background: #0066cc;
   color: #ffffff;
-  border-color: #2563eb;
 }
 
+/* Кнопка смены темы */
 .theme-toggle-btn {
-  background: #f1f5f9;
+  background: transparent;
   border: 1px solid #cbd5e1;
   border-radius: 20px;
-  padding: 6px 14px;
-  cursor: pointer;
+  padding: 4px 12px;
   font-size: 0.85rem;
   font-weight: 600;
+  color: #4b5563;
+  cursor: pointer;
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  color: #334155;
-  transition: all 0.2s ease;
 }
 
-.theme-toggle-btn:hover {
-  background: #e2e8f0;
+/* ==================== ПАНЕЛЬ РОЛЕЙ ==================== */
+.page-body {
+  max-width: 1100px;
+  margin: 24px auto 60px;
+  padding: 0 16px;
 }
 
-/* ==================== КОНТЕЙНЕР ==================== */
-main {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 30px 20px 60px;
-}
-
-/* Переключатель ролей (демо) */
-.role-bar {
-  background: #e0f2fe;
-  border: 1px solid #bae6fd;
-  border-radius: 12px;
+.role-selector-bar {
+  background-color: #e8f2fe;
+  border: 1px solid #cfe2fe;
+  border-radius: 8px;
   padding: 12px 20px;
-  margin-bottom: 30px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 15px;
+  margin-bottom: 28px;
 }
 
-.role-bar-title {
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: #0369a1;
-}
-
-.role-buttons {
-  display: flex;
-  gap: 8px;
-}
-
-.btn-role {
-  padding: 6px 14px;
-  border-radius: 8px;
-  border: 1px solid transparent;
-  background: #ffffff;
-  color: #0369a1;
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 0.85rem;
-  transition: all 0.2s;
-}
-
-.btn-role.active {
-  background: #0284c7;
-  color: #ffffff;
-}
-
-/* ==================== HERO БЛОК ==================== */
-.hero {
-  background: #ffffff;
-  border-radius: 20px;
-  padding: 50px 40px;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-  margin-bottom: 30px;
-  text-align: center;
-  transition: background-color 0.3s ease, border-color 0.3s ease;
-}
-
-.hero-pill {
-  display: inline-block;
-  background: #dbeafe;
-  color: #1d4ed8;
-  font-size: 0.85rem;
-  font-weight: 600;
-  padding: 6px 14px;
-  border-radius: 20px;
-  margin-bottom: 16px;
-}
-
-.hero h1 {
-  font-size: 2.4rem;
-  font-weight: 800;
-  color: #0f172a;
-  margin-bottom: 16px;
-  line-height: 1.2;
-}
-
-.hero p {
-  font-size: 1.1rem;
-  color: #64748b;
-  max-width: 700px;
-  margin: 0 auto 28px;
-}
-
-.hero-actions {
-  display: flex;
-  justify-content: center;
-  gap: 14px;
-}
-
-.btn-primary {
-  background: #2563eb;
-  color: #ffffff;
-  padding: 12px 24px;
-  border-radius: 10px;
-  font-weight: 600;
-  text-decoration: none;
-  border: none;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.btn-primary:hover {
-  background: #1d4ed8;
-}
-
-.btn-secondary {
-  background: #ffffff;
-  color: #334155;
-  border: 1px solid #cbd5e1;
-  padding: 12px 24px;
-  border-radius: 10px;
-  font-weight: 600;
-  text-decoration: none;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn-secondary:hover {
-  background: #f1f5f9;
-}
-
-/* ==================== СЕТКА КАРТОЧЕК ==================== */
-.section-title {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: #0f172a;
-  margin-bottom: 20px;
-}
-
-.cards-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 20px;
-  margin-bottom: 40px;
-}
-
-.card {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 16px;
-  padding: 24px;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.03);
-  transition: all 0.3s ease;
-}
-
-.card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08);
-}
-
-.card-tag {
-  display: inline-block;
-  padding: 4px 10px;
-  border-radius: 6px;
-  font-size: 0.8rem;
-  font-weight: 700;
-  margin-bottom: 12px;
-}
-
-.tag-en { background: #e0f2fe; color: #0369a1; }
-.tag-zh { background: #fee2e2; color: #b91c1c; }
-
-.card h3 {
-  font-size: 1.25rem;
-  font-weight: 700;
-  margin-bottom: 8px;
-}
-
-.card p {
-  color: #64748b;
+.role-title {
+  color: #084298;
   font-size: 0.95rem;
-  margin-bottom: 16px;
+  font-weight: 600;
 }
 
-.card-badges {
+.role-tabs {
   display: flex;
   gap: 8px;
-  margin-bottom: 20px;
 }
 
-.badge {
-  background: #f1f5f9;
-  color: #475569;
-  padding: 4px 8px;
+.role-tab {
+  background: #ffffff;
+  border: 1px solid #b6d4fe;
+  color: #084298;
+  padding: 6px 16px;
   border-radius: 6px;
-  font-size: 0.8rem;
+  font-size: 0.9rem;
   font-weight: 500;
-}
-
-/* ==================== ФОРМА ЗАПИСИ ==================== */
-.booking-container {
-  max-width: 650px;
-  margin: 0 auto 50px;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 20px;
-  padding: 36px;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
-  transition: background-color 0.3s ease, border-color 0.3s ease;
-}
-
-.booking-header {
-  text-align: center;
-  margin-bottom: 26px;
-}
-
-.booking-header h2 {
-  font-size: 1.6rem;
-  font-weight: 800;
-  margin-bottom: 6px;
-}
-
-.booking-header p {
-  color: #64748b;
-  font-size: 0.95rem;
-}
-
-.form-group {
-  margin-bottom: 18px;
-}
-
-.form-group label {
-  display: block;
-  font-size: 0.9rem;
-  font-weight: 600;
-  margin-bottom: 6px;
-  color: #334155;
-}
-
-.form-control {
-  width: 100%;
-  padding: 12px 16px;
-  border: 1px solid #cbd5e1;
-  border-radius: 10px;
-  font-size: 0.95rem;
-  background: #ffffff;
-  color: #0f172a;
-  outline: none;
-  transition: all 0.2s ease;
-}
-
-.form-control:focus {
-  border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
-}
-
-.btn-submit {
-  width: 100%;
-  background: #2563eb;
-  color: #ffffff;
-  border: none;
-  padding: 14px;
-  border-radius: 10px;
-  font-size: 1rem;
-  font-weight: 700;
   cursor: pointer;
-  transition: background 0.2s;
-  margin-top: 10px;
+  transition: all 0.2s;
 }
 
-.btn-submit:hover {
-  background: #1d4ed8;
+.role-tab.active {
+  background: #0066cc;
+  color: #ffffff;
+  border-color: #0066cc;
 }
 
-/* ==================== CRM ПАНЕЛЬ ==================== */
-.crm-section {
+/* Секции */
+.view-section {
   display: none;
 }
 
-.crm-section.active {
+.view-section.active {
   display: block;
 }
 
-.crm-header-card {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 16px;
-  padding: 24px;
-  margin-bottom: 24px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+/* ==================== 1. ПОЛЬЗОВАТЕЛЬ ==================== */
+.block-heading {
+  font-size: 1.4rem;
+  font-weight: 700;
+  margin-bottom: 18px;
+  color: #111827;
 }
 
-.stats-grid {
+.courses-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 16px;
-  margin-bottom: 24px;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 28px;
 }
 
-.stat-box {
+.course-card {
   background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 14px;
-  padding: 20px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
 }
 
-.stat-label {
-  font-size: 0.85rem;
+.course-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.flag-icon {
+  background: #f3f4f6;
+  color: #1f2937;
+  font-weight: 700;
+  font-size: 0.8rem;
+  padding: 3px 6px;
+  border-radius: 4px;
+}
+
+.flag-gb { background: #e0f2fe; color: #0284c7; }
+.flag-cn { background: #fee2e2; color: #dc2626; }
+
+.course-title {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.course-desc {
+  font-size: 0.95rem;
+  color: #6b7280;
+  margin-bottom: 16px;
+  flex-grow: 1;
+}
+
+.course-badges {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.badge {
+  background: #f3f4f6;
+  color: #4b5563;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+}
+
+.btn-select-course {
+  background: #0066cc;
+  color: #ffffff;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 6px;
   font-weight: 600;
-  color: #64748b;
+  font-size: 0.95rem;
+  cursor: pointer;
+  width: 100%;
+}
+
+.btn-select-course:hover {
+  background: #0052a3;
+}
+
+/* Форма записи */
+.booking-box {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 28px 32px;
+  max-width: 650px;
+  margin: 0 auto;
+}
+
+.booking-title {
+  text-align: center;
+  font-size: 1.3rem;
+  font-weight: 700;
+  margin-bottom: 22px;
+  color: #111827;
+}
+
+.input-row {
+  margin-bottom: 16px;
+}
+
+.input-row label {
+  display: block;
+  font-size: 0.9rem;
+  color: #374151;
   margin-bottom: 6px;
 }
 
-.stat-val {
-  font-size: 1.8rem;
-  font-weight: 800;
-  color: #0f172a;
+.custom-input {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  outline: none;
 }
 
-.table-card {
+.custom-input:focus {
+  border-color: #0066cc;
+}
+
+.btn-submit-booking {
+  width: 100%;
+  background: #0066cc;
+  color: #ffffff;
+  border: none;
+  padding: 12px;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 8px;
+}
+
+.btn-submit-booking:hover {
+  background: #0052a3;
+}
+
+/* ==================== 2. УЧЕНИК ==================== */
+.cabinet-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+.cabinet-card {
   background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 16px;
-  overflow: hidden;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.03);
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 24px;
 }
 
-table {
+.card-heading {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+
+.active-course-banner {
+  background: #e8f2fe;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 20px;
+}
+
+.course-badge-info {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #0066cc;
+  margin-bottom: 4px;
+}
+
+.lesson-time {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.lesson-sub {
+  font-size: 0.85rem;
+  color: #6b7280;
+  margin: 4px 0 12px;
+}
+
+.btn-enter-lesson {
+  background: #0066cc;
+  color: #ffffff;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.progress-box {
+  margin-bottom: 20px;
+}
+
+.progress-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.progress-pct {
+  color: #0066cc;
+}
+
+.progress-bar-bg {
+  background: #e5e7eb;
+  height: 8px;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  background: #0066cc;
+  height: 100%;
+}
+
+.cabinet-list {
+  list-style: none;
+  font-size: 0.9rem;
+  color: #4b5563;
+}
+
+.cabinet-list li {
+  margin-bottom: 6px;
+  position: relative;
+  padding-left: 14px;
+}
+
+.cabinet-list li::before {
+  content: "•";
+  position: absolute;
+  left: 0;
+  color: #9ca3af;
+}
+
+.schedule-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  margin-bottom: 10px;
+}
+
+.schedule-time {
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: #dc2626;
+}
+
+.schedule-student {
+  font-size: 0.9rem;
+  color: #374151;
+  margin-top: 2px;
+}
+
+.status-btn-green {
+  background: #10b981;
+  color: #ffffff;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.status-btn-blue {
+  background: #0066cc;
+  color: #ffffff;
+  border: none;
+  padding: 6px 16px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.status-btn-outline {
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  color: #4b5563;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+/* ==================== 3. АДМИНИСТРАТОР (CRM) ==================== */
+.crm-layout {
+  display: flex;
+  gap: 24px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.crm-sidebar {
+  width: 220px;
+  background: #1e293b;
+  color: #ffffff;
+  padding: 24px 16px;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 1.1rem;
+  margin-bottom: 20px;
+}
+
+.sidebar-label {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  margin-bottom: 10px;
+  font-weight: 700;
+}
+
+.sidebar-menu {
+  list-style: none;
+  flex-grow: 1;
+}
+
+.sidebar-menu li {
+  padding: 10px 12px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  color: #cbd5e1;
+  margin-bottom: 4px;
+}
+
+.sidebar-menu li.active {
+  background: #0066cc;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.sidebar-logout {
+  color: #ef4444;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.crm-content {
+  flex-grow: 1;
+  padding: 24px 24px 30px 0;
+}
+
+.crm-heading {
+  font-size: 1.3rem;
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+
+.crm-filter-bar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.crm-filter-btn {
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  color: #374151;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.crm-filter-btn.active {
+  background: #0066cc;
+  color: #ffffff;
+  border-color: #0066cc;
+}
+
+.crm-table-wrapper {
+  overflow-x: auto;
+}
+
+.crm-table {
   width: 100%;
   border-collapse: collapse;
   text-align: left;
-}
-
-th {
-  background: #f8fafc;
-  padding: 14px 18px;
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: #475569;
-  border-bottom: 1px solid #e2e8f0;
-}
-
-td {
-  padding: 14px 18px;
   font-size: 0.9rem;
-  border-bottom: 1px solid #f1f5f9;
-  color: #334155;
 }
 
-tr:hover td {
-  background: #f8fafc;
-}
-
-.status-badge {
-  padding: 4px 10px;
-  border-radius: 20px;
-  font-size: 0.8rem;
+.crm-table th {
+  padding: 10px 12px;
+  border-bottom: 2px solid #e5e7eb;
+  color: #4b5563;
   font-weight: 700;
-  display: inline-block;
+}
+
+.crm-table td {
+  padding: 12px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.status-pill {
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
 }
 
 .status-new { background: #fef3c7; color: #b45309; }
 .status-confirmed { background: #dcfce7; color: #15803d; }
 
-.btn-approve {
-  background: #f0fdf4;
-  color: #16a34a;
-  border: 1px solid #bbf7d0;
-  padding: 6px 12px;
-  border-radius: 6px;
-  font-size: 0.85rem;
-  font-weight: 600;
+.btn-approve-action {
+  background: #ffffff;
+  border: 1px solid #10b981;
+  color: #10b981;
+  padding: 4px 10px;
+  border-radius: 4px;
   cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn-approve:hover {
-  background: #dcfce7;
-}
-
-.btn-approved-disabled {
-  background: transparent;
-  color: #16a34a;
-  border: none;
-  font-weight: 700;
   font-size: 0.85rem;
 }
 
-/* ==================== УВЕДОМЛЕНИЯ (TOAST) ==================== */
+.btn-approve-action:hover {
+  background: #10b981;
+  color: #ffffff;
+}
+
+/* ==================== ТЕМНАЯ ТЕМА ==================== */
+body.dark-theme {
+  background-color: #0b0f19;
+  color: #f1f5f9;
+}
+
+body.dark-theme .navbar {
+  background-color: #111827;
+  border-color: #1f2937;
+}
+
+body.dark-theme .nav-link {
+  color: #94a3b8;
+}
+
+body.dark-theme .theme-toggle-btn {
+  border-color: #374151;
+  color: #e5e7eb;
+}
+
+body.dark-theme .role-selector-bar {
+  background-color: #1e293b;
+  border-color: #334155;
+}
+
+body.dark-theme .role-title {
+  color: #60a5fa;
+}
+
+body.dark-theme .role-tab {
+  background-color: #0f172a;
+  border-color: #334155;
+  color: #94a3b8;
+}
+
+body.dark-theme .role-tab.active {
+  background-color: #0066cc;
+  color: #ffffff;
+}
+
+body.dark-theme .block-heading,
+body.dark-theme .course-title,
+body.dark-theme .booking-title,
+body.dark-theme .card-heading,
+body.dark-theme .crm-heading,
+body.dark-theme .lesson-time {
+  color: #f8fafc;
+}
+
+body.dark-theme .course-card,
+body.dark-theme .booking-box,
+body.dark-theme .cabinet-card,
+body.dark-theme .crm-layout {
+  background-color: #111827;
+  border-color: #1f2937;
+}
+
+body.dark-theme .active-course-banner {
+  background-color: #1e293b;
+}
+
+body.dark-theme .schedule-item {
+  border-color: #1f2937;
+}
+
+body.dark-theme .custom-input {
+  background-color: #0b0f19;
+  border-color: #374151;
+  color: #f8fafc;
+}
+
+body.dark-theme .crm-table th {
+  border-bottom-color: #374151;
+  color: #94a3b8;
+}
+
+body.dark-theme .crm-table td {
+  border-bottom-color: #1f2937;
+  color: #e2e8f0;
+}
+
+body.dark-theme .crm-filter-btn {
+  background-color: #1f2937;
+  border-color: #374151;
+  color: #cbd5e1;
+}
+
+body.dark-theme .crm-filter-btn.active {
+  background-color: #0066cc;
+  color: #ffffff;
+}
+
+/* Toast */
 #toast {
   visibility: hidden;
-  min-width: 280px;
-  background-color: #0f172a;
+  min-width: 260px;
+  background-color: #111827;
   color: #ffffff;
   text-align: center;
-  border-radius: 10px;
-  padding: 14px 20px;
+  border-radius: 8px;
+  padding: 12px 18px;
   position: fixed;
   z-index: 1000;
-  right: 24px;
-  bottom: 24px;
-  font-size: 0.95rem;
-  font-weight: 600;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2);
+  right: 20px;
+  bottom: 20px;
+  font-size: 0.9rem;
   opacity: 0;
   transition: opacity 0.3s, visibility 0.3s;
 }
@@ -517,121 +721,17 @@ tr:hover td {
   opacity: 1;
 }
 
-/* ==================== ТЕМНАЯ ТЕМА ==================== */
-body.dark-theme {
-  background-color: #0b0f19;
-  color: #f1f5f9;
-}
-
-body.dark-theme header {
-  background-color: #111827;
-  border-color: #1f2937;
-}
-
-body.dark-theme .brand {
-  color: #ffffff;
-}
-
-body.dark-theme .nav-links a {
-  color: #94a3b8;
-}
-
-body.dark-theme .nav-links a:hover {
-  color: #60a5fa;
-}
-
-body.dark-theme .lang-btn,
-body.dark-theme .theme-toggle-btn {
-  background: #1e293b;
-  border-color: #334155;
-  color: #f1f5f9;
-}
-
-body.dark-theme .theme-toggle-btn:hover {
-  background: #334155;
-}
-
-body.dark-theme .role-bar {
-  background: #0f172a;
-  border-color: #1e293b;
-}
-
-body.dark-theme .role-bar-title {
-  color: #38bdf8;
-}
-
-body.dark-theme .btn-role {
-  background: #1e293b;
-  color: #94a3b8;
-}
-
-body.dark-theme .btn-role.active {
-  background: #0284c7;
-  color: #ffffff;
-}
-
-body.dark-theme .hero,
-body.dark-theme .card,
-body.dark-theme .booking-container,
-body.dark-theme .crm-header-card,
-body.dark-theme .stat-box,
-body.dark-theme .table-card {
-  background-color: #111827;
-  border-color: #1f2937;
-  color: #f1f5f9;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
-}
-
-body.dark-theme .section-title,
-body.dark-theme .hero h1,
-body.dark-theme .stat-val,
-body.dark-theme .booking-header h2,
-body.dark-theme .form-group label {
-  color: #f8fafc;
-}
-
-body.dark-theme .hero p,
-body.dark-theme .card p,
-body.dark-theme .booking-header p,
-body.dark-theme .stat-label {
-  color: #94a3b8;
-}
-
-body.dark-theme .form-control {
-  background-color: #0b0f19;
-  border-color: #334155;
-  color: #f8fafc;
-}
-
-body.dark-theme .form-control:focus {
-  border-color: #3b82f6;
-}
-
-body.dark-theme table {
-  background-color: #111827;
-}
-
-body.dark-theme th {
-  background-color: #0f172a;
-  border-bottom-color: #1f2937;
-  color: #94a3b8;
-}
-
-body.dark-theme td {
-  border-bottom-color: #1f2937;
-  color: #cbd5e1;
-}
-
-body.dark-theme tr:hover td {
-  background-color: #1a2234;
-}
-
-body.dark-theme .btn-secondary {
-  background: #1e293b;
-  border-color: #334155;
-  color: #f1f5f9;
-}
-
-body.dark-theme .btn-secondary:hover {
-  background: #334155;
+@media (max-width: 768px) {
+  .courses-grid, .cabinet-grid {
+    grid-template-columns: 1fr;
+  }
+  .crm-layout {
+    flex-direction: column;
+  }
+  .crm-sidebar {
+    width: 100%;
+  }
+  .crm-content {
+    padding: 16px;
+  }
 }
