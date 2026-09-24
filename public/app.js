@@ -3,6 +3,83 @@ var activeLang = 'RU';
 var allCrmData = [];
 var calcState = { lang: 'en', format: 'indiv', lessons: 12 };
 
+// Данные для модального окна подробного портфолио
+var teacherProfiles = {
+  anastasia: {
+    name: 'Анастасия Четверикова',
+    role: 'Ведущий методист • CELTA, IELTS Academic 8.5',
+    langBadge: 'Английский язык',
+    langId: 1,
+    photo: 'anastasia.jpg',
+    rating: '★ 4.98 (240+ проведённых уроков)',
+    desc: 'Опыт преподавания 9 лет. Окончила лингвистический факультет с отличием, регулярно готовит слушателей к международным стажировкам и поступлению в зарубежные вузы. Автор уникальной экспресс-программы по преодолению языкового барьера за 6 недель.',
+    chips: ['General English', 'IELTS Academic', 'Разговорный интенсив', 'C1 Proficiency']
+  },
+  jackie: {
+    name: 'Джеки Чан (成龙)',
+    role: 'Носитель языка • Международный сертификат HSK 6',
+    langBadge: 'Китайский язык',
+    langId: 2,
+    photo: 'jackie.jpg',
+    rating: '★ 5.0 (500+ восторженных отзывов)',
+    desc: 'Легендарный преподаватель и эксперт китайской классической и бизнес-лингвистики. Учит идеальной тональной артикуляции, скорописи иероглифов, правильному этикету деловых переговоров и живому диалекту без стресса и страха ошибок.',
+    chips: ['HSK 1-6', 'Бизнес-Китайский', 'Постановка тонов', 'Каллиграфия']
+  },
+  mark: {
+    name: 'Марк Ковалёв',
+    role: 'Синхронный переводчик • TOEFL 115, С2 Expert',
+    langBadge: 'Английский язык',
+    langId: 1,
+    photo: 'mark.jpg',
+    rating: '★ 4.95 (180+ успешных сдач TOEFL)',
+    desc: 'Практикующий конференц-переводчик международных IT-саммитов. Разработчик интерактивной мнемонической методики запоминания до 1000 профессиональных лексических единиц в месяц без монотонной зубрёжки.',
+    chips: ['IT English', 'TOEFL iBT', 'Деловая переписка', 'Public Speaking']
+  }
+};
+
+// ==================== МОДАЛЬНОЕ ОКНО ПРЕПОДАВАТЕЛЯ ====================
+function openTeacherModal(key) {
+  var t = teacherProfiles[key];
+  if (!t) return;
+
+  var photoEl = document.getElementById('m-photo');
+  var badgeEl = document.getElementById('m-badge');
+  var nameEl = document.getElementById('m-name');
+  var roleEl = document.getElementById('m-role');
+  var ratingEl = document.getElementById('m-rating');
+  var descEl = document.getElementById('m-desc');
+  var chipsEl = document.getElementById('m-chips');
+  var bookBtn = document.getElementById('m-book-btn');
+
+  if (photoEl) photoEl.src = t.photo;
+  if (badgeEl) badgeEl.innerText = t.langBadge;
+  if (nameEl) nameEl.innerText = t.name;
+  if (roleEl) roleEl.innerText = t.role;
+  if (ratingEl) ratingEl.innerText = t.rating;
+  if (descEl) descEl.innerText = t.desc;
+
+  if (chipsEl) {
+    chipsEl.innerHTML = t.chips.map(function(c) {
+      return '<span class="chip">' + c + '</span>';
+    }).join('');
+  }
+
+  if (bookBtn) {
+    bookBtn.onclick = function() {
+      closeTeacherModal();
+      pickTeacher(t.name, t.langId);
+    };
+  }
+
+  var modal = document.getElementById('teacher-modal');
+  if (modal) modal.classList.add('show');
+}
+
+function closeTeacherModal(e) {
+  var modal = document.getElementById('teacher-modal');
+  if (modal) modal.classList.remove('show');
+}
+
 // ==================== УПРАВЛЕНИЕ ТЕМОЙ ====================
 function initTheme() {
   var saved = localStorage.getItem('ls_theme');
@@ -60,7 +137,7 @@ var dict = {
     calcLblFormat: 'Формат обучения:',
     calcApplyBtn: 'Зафиксировать цену в заявке',
     tSectionTitle: 'Педагогический состав школы',
-    tSectionDesc: 'Сертифицированные эксперты с подтвержденными международными дипломами',
+    tSectionDesc: 'Нажмите на карточку любого преподавателя, чтобы просмотреть полное портфолио',
     fMainTitle: 'Электронная запись на вводный урок',
     fMainDesc: 'После отправки заявка мгновенно попадает в базу данных PostgreSQL',
     fSubmitBtn: 'Отправить заявку в базу данных PostgreSQL',
@@ -96,7 +173,7 @@ var dict = {
     calcLblFormat: 'Learning Format:',
     calcApplyBtn: 'Lock Price in Application',
     tSectionTitle: 'Our Certified Faculty',
-    tSectionDesc: 'Experienced linguists with international degrees and proven records',
+    tSectionDesc: 'Click on any instructor card to view full professional portfolio',
     fMainTitle: 'Online Registration for Trial Lesson',
     fMainDesc: 'Application data is stored directly in PostgreSQL database',
     fSubmitBtn: 'Submit Application to PostgreSQL Database',
@@ -132,7 +209,7 @@ var dict = {
     calcLblFormat: '授课模式：',
     calcApplyBtn: '将测算优惠写入预约单',
     tSectionTitle: '精英师资团队',
-    tSectionDesc: '拥有国际教师资格认证及多年教学经验的骨干名师',
+    tSectionDesc: '点击名师卡片查看专属教学资质及详细履历',
     fMainTitle: '免费试听课在线预约',
     fMainDesc: '提交后数据实时录入PostgreSQL核心数据库',
     fSubmitBtn: '提交申请至PostgreSQL数据库',
@@ -148,7 +225,6 @@ function safeSet(id, text, isHtml) {
   }
 }
 
-// Переключение языка интерфейса
 function changeLang(lang) {
   activeLang = lang;
   var buttons = document.querySelectorAll('.lang-item');
@@ -205,7 +281,6 @@ function changeLang(lang) {
   safeSet('f-submit-btn', t.fSubmitBtn, false);
 }
 
-// Переключение ролей
 function switchRole(roleKey) {
   var roleBtns = document.querySelectorAll('.role-btn');
   for (var i = 0; i < roleBtns.length; i++) {
@@ -372,7 +447,6 @@ function applyCalcToForm() {
   showToast('Параметры курса зафиксированы!');
 }
 
-// Выбор преподавателя по кнопке карточки БЕЗ загрязнения поля заметок
 function pickTeacher(name, langId) {
   scrollToSection('booking-section');
   var langSel = document.getElementById('lead-lang');
@@ -397,7 +471,7 @@ function syncTeacherSelect() {
     teacherSel.value = 'Джеки Чан (成龙)';
   } else {
     if (teacherSel.value === 'Джеки Чан (成龙)') {
-      teacherSel.value = 'Анна Смирнова';
+      teacherSel.value = 'Анастасия Четверикова';
     }
   }
 }
@@ -474,7 +548,7 @@ function renderCrmRows(items) {
     var teacher = item.Teacher_Name;
     if (!teacher || teacher === 'Не назначен') {
       var isZh = (item.Language_Name && item.Language_Name.indexOf('Китай') !== -1) || item.Language_Code === 'ZH';
-      teacher = isZh ? 'Джеки Чан (成龙)' : 'Анна Смирнова';
+      teacher = isZh ? 'Джеки Чан (成龙)' : 'Анастасия Четверикова';
     }
 
     var actionBtn = isConfirmed 
@@ -529,7 +603,6 @@ function filterByLang(langKey) {
   }
 }
 
-// Персистентное сохранение статуса заявки в БД
 async function quickConfirm(id) {
   try {
     var res = await fetch('/api/requests/' + id + '/status', {
@@ -598,6 +671,8 @@ function showToast(msg) {
 }
 
 // Экспорт в window
+window.openTeacherModal = openTeacherModal;
+window.closeTeacherModal = closeTeacherModal;
 window.toggleTheme = toggleTheme;
 window.changeLang = changeLang;
 window.switchRole = switchRole;
