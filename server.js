@@ -8,7 +8,7 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Получаем строку подключения к базе данных Supabase / PostgreSQL
+// Подключение к Supabase / PostgreSQL
 const connString = process.env.DATABASE_POSTGRES_URL || process.env.DATABASE_URL;
 
 let pool = null;
@@ -53,16 +53,22 @@ function getPool() {
   return pool;
 }
 
-// Проверка и добавление колонки Notes при старте
-async function ensureNotesColumn() {
+// Гарантируем наличие необходимых колонок и базовых статусов
+async function ensureDbStructure() {
   try {
     const db = getPool();
     await db.query(`ALTER TABLE "Lesson_Request" ADD COLUMN IF NOT EXISTS "Notes" TEXT;`);
+    await db.query(`ALTER TABLE "Lesson_Request" ADD COLUMN IF NOT EXISTS "Teacher_Name" VARCHAR(100);`);
+    await db.query(`
+      INSERT INTO "Request_Status" ("ID_Status", "Status_Name") 
+      VALUES (1, 'Новая'), (2, 'Подтверждена') 
+      ON CONFLICT ("ID_Status") DO NOTHING;
+    `);
   } catch (err) {
-    // Игнорируем, если прав нет или колонка уже существует
+    // Игнорируем возможные ошибки схемы
   }
 }
-ensureNotesColumn();
+ensureDbStructure();
 
 // 1. Получение списка языков
 app.get('/api/languages', async (req, res) => {
@@ -76,7 +82,7 @@ app.get('/api/languages', async (req, res) => {
   }
 });
 
-// 2. Отправка новой заявки с сохранением пожеланий (Notes) и преподавателя
+// 2. Создание заявки
 app.post('/api/requests', async (req, res) => {
   const { full_name, contact, language_id, preferred_date, notes, teacher_name } = req.body;
   if (!full_name || !contact || !language_id || !preferred_date) {
@@ -105,25 +111,24 @@ app.post('/api/requests', async (req, res) => {
       actualLangId = insertLang.rows[0].ID_Language;
     }
 
-    await db.query(
-      `INSERT INTO "Request_Status" ("ID_Status", "Status_Name") VALUES (1, 'Новая') ON CONFLICT DO NOTHING;`
-    );
+    await db.query(`
+      INSERT INTO "Request_Status" ("ID_Status", "Status_Name") 
+      VALUES (1, 'Новая') 
+      ON CONFLICT ("ID_Status") DO NOTHING;
+    `);
 
-    // Определение преподавателя (если указан явно в форме или выбран из карточки)
-    let assignedTeacher = teacher_name || null;
-    if (!assignedTeacher) {
-      if (notes && notes.includes('Марк Ковалёв')) assignedTeacher = 'Марк Ковалёв';
-      else if (notes && notes.includes('Ван Ли')) assignedTeacher = 'Ван Ли (王丽)';
-      else if (notes && notes.includes('Анна Смирнова')) assignedTeacher = 'Анна Смирнова';
+    // Если преподаватель не выбран вручную, распределяем по языку
+    let finalTeacher = teacher_name;
+    if (!finalTeacher) {
+      finalTeacher = isZh ? 'Джеки Чан (成龙)' : 'Анна Смирнова';
     }
 
-    // Сохранение в Lesson_Request с пожеланиями (Notes)
     const query = `
       INSERT INTO "Lesson_Request" 
-        ("Full_Name", "Contact", "ID_Language", "Preferred_Date", "ID_Status", "Notes") 
-      VALUES ($1, $2, $3, $4, 1, $5) RETURNING *;
+        ("Full_Name", "Contact", "ID_Language", "Preferred_Date", "ID_Status", "Notes", "Teacher_Name") 
+      VALUES ($1, $2, $3, $4, 1, $5, $6) RETURNING *;
     `;
-    const values = [full_name, contact, actualLangId, preferred_date, notes || null];
+    const values = [full_name, contact, actualLangId, preferred_date, notes || null, finalTeacher];
     const result = await db.query(query, values);
 
     res.status(201).json({ success: true, request: result.rows[0] });
@@ -133,7 +138,7 @@ app.post('/api/requests', async (req, res) => {
   }
 });
 
-// 3. Выгрузка заявок для CRM с автоопределением педагога (Анна, Ван Ли, Марк Ковалев) и показом Notes
+// 3. Выгрузка заявок для CRM с гарантированным сохранением статусов
 app.get('/api/requests', async (req, res) => {
   try {
     const db = getPool();
@@ -143,23 +148,22 @@ app.get('/api/requests', async (req, res) => {
         r."Full_Name", 
         r."Contact", 
         r."Notes",
+        r."ID_Status",
         l."Language_Name", 
         l."Language_Code",
         TO_CHAR(r."Preferred_Date", 'YYYY-MM-DD') AS "Preferred_Date", 
-        s."Status_Name",
+        COALESCE(rs."Status_Name", CASE WHEN r."ID_Status" = 2 THEN 'Подтверждена' ELSE 'Новая' END) AS "Status_Name",
         COALESCE(
+          r."Teacher_Name",
           u."Full_Name",
           CASE 
-            WHEN r."Notes" ILIKE '%Марк%' THEN 'Марк Ковалёв'
-            WHEN r."Notes" ILIKE '%Ван Ли%' THEN 'Ван Ли (王丽)'
-            WHEN r."Notes" ILIKE '%Смирнов%' THEN 'Анна Смирнова'
-            WHEN l."Language_Code" = 'ZH' OR l."Language_Name" ILIKE '%Китай%' THEN 'Ван Ли (王丽)'
+            WHEN l."Language_Code" = 'ZH' OR l."Language_Name" ILIKE '%Китай%' THEN 'Джеки Чан (成龙)'
             ELSE 'Анна Смирнова'
           END
         ) AS "Teacher_Name"
       FROM "Lesson_Request" r
-      JOIN "Language" l ON r."ID_Language" = l."ID_Language"
-      JOIN "Request_Status" s ON r."ID_Status" = s."ID_Status"
+      LEFT JOIN "Language" l ON r."ID_Language" = l."ID_Language"
+      LEFT JOIN "Request_Status" rs ON r."ID_Status" = rs."ID_Status"
       LEFT JOIN "User" u ON r."Assigned_Teacher_ID" = u."ID_User"
       ORDER BY r."ID_Request" DESC;
     `;
@@ -171,31 +175,39 @@ app.get('/api/requests', async (req, res) => {
   }
 });
 
-// 4. Смена статуса заявки
+// 4. Смена статуса заявки (персистентное сохранение в PostgreSQL)
 app.patch('/api/requests/:id/status', async (req, res) => {
   const { id } = req.params;
   const { status_id } = req.body;
   try {
     const db = getPool();
+
+    // Гарантируем, что статус с таким ID есть в справочнике
+    await db.query(`
+      INSERT INTO "Request_Status" ("ID_Status", "Status_Name") 
+      VALUES (2, 'Подтверждена') 
+      ON CONFLICT ("ID_Status") DO NOTHING;
+    `);
+
     const result = await db.query(
       'UPDATE "Lesson_Request" SET "ID_Status" = $1 WHERE "ID_Request" = $2 RETURNING *',
-      [status_id, id]
+      [status_id || 2, id]
     );
     res.json({ success: true, updated: result.rows[0] });
   } catch (err) {
+    console.error('Ошибка обновления статуса:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
 
-// Отдача главной страницы
+// Роут для Vercel / статики
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Локальный запуск
 if (!process.env.VERCEL) {
   app.listen(PORT, () => {
-    console.log(`Сервер языковой школы «ЛингваСфера» запущен на http://localhost:${PORT}`);
+    console.log(`Сервер запущен: http://localhost:${PORT}`);
   });
 }
 
