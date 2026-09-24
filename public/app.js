@@ -28,6 +28,7 @@ function updateThemeUi(isDark) {
   if (text) text.innerText = isDark ? 'Светлая' : 'Тёмная';
 }
 
+// ==================== МУЛЬТИЯЗЫЧНЫЙ СЛОВАРЬ ====================
 var dict = {
   RU: {
     roleLabel: 'Ролевая экосистема (ПМ.08):',
@@ -52,7 +53,7 @@ var dict = {
     statTeachers: 'Носителей и методистов',
     statSpeed: 'Средний срок одного уровня',
     testTitle: 'Интерактивный тест на уровень знаний',
-    testDesc: 'Ответьте на вопрос, чтобы система автоматически определила вашу отправную точку',
+    testDesc: 'Ответьте на вопросы, чтобы система автоматически определила вашу отправную точку',
     calcTitle: 'Калькулятор индивидуальной программы',
     calcDesc: 'Рассчитайте персональную стоимость занятий со скидкой за пакет',
     calcLblLang: 'Языковое направление:',
@@ -235,16 +236,95 @@ function scrollToSection(id) {
   if (el) el.scrollIntoView({ behavior: 'smooth' });
 }
 
-function answerQuiz(isCorrect, btn) {
+// ==================== ИНТЕРАКТИВНЫЙ ОПРОСНИК (3 ВОПРОСА) ====================
+var quizQuestions = [
+  {
+    q: '1. Choose the correct sentence: "If I _____ harder, I would have passed the exam."',
+    options: ['had studied', 'studied', 'would study', 'have studied'],
+    correct: 0
+  },
+  {
+    q: '2. Which word best completes: "She has been living in Shanghai _____ three years."',
+    options: ['since', 'for', 'during', 'from'],
+    correct: 1
+  },
+  {
+    q: '3. Select the correct passive voice: "The contract _____ signed tomorrow."',
+    options: ['will be', 'was', 'is been', 'has'],
+    correct: 0
+  }
+];
+
+var currentQuizIndex = 0;
+var quizScore = 0;
+
+function renderQuizQuestion() {
+  var container = document.getElementById('quiz-options-container');
+  var qText = document.getElementById('quiz-question-text');
+  var indicator = document.getElementById('quiz-step-indicator');
+  var resultBox = document.getElementById('quiz-box-result');
+  var quizBody = document.getElementById('quiz-container');
+
+  if (!container || !qText) return;
+
+  if (currentQuizIndex >= quizQuestions.length) {
+    if (quizBody) quizBody.style.display = 'none';
+    if (indicator) indicator.innerText = 'Тест завершен';
+    if (resultBox) {
+      resultBox.style.display = 'block';
+      var title = document.getElementById('quiz-result-title');
+      var desc = document.getElementById('quiz-result-desc');
+
+      if (quizScore === 3) {
+        if (title) title.innerText = '✓ Ваш рекомендуемый уровень: Advanced (C1) — 3 из 3';
+        if (desc) desc.innerText = 'Великолепный результат! Вы уверенно владеете сложными конструкциями. Рекомендуем курс подготовки к экзаменам или разговорный бизнес-интенсив.';
+      } else if (quizScore === 2) {
+        if (title) title.innerText = '✓ Ваш рекомендуемый уровень: Intermediate (B1–B2) — 2 из 3';
+        if (desc) desc.innerText = 'Хороший базис! Рекомендуем интенсивный разговорный практикум для закрепления грамматики и снятия языкового барьера.';
+      } else {
+        if (title) title.innerText = '✓ Ваш рекомендуемый уровень: Elementary (A2) — ' + quizScore + ' из 3';
+        if (desc) desc.innerText = 'Рекомендуем базовый курс с нуля или повторение ключевых временных форм с нашими преподавателями.';
+      }
+    }
+    return;
+  }
+
+  if (quizBody) quizBody.style.display = 'block';
+  if (resultBox) resultBox.style.display = 'none';
+  if (indicator) indicator.innerText = 'Вопрос ' + (currentQuizIndex + 1) + ' из ' + quizQuestions.length;
+
+  var current = quizQuestions[currentQuizIndex];
+  qText.innerText = current.q;
+
+  container.innerHTML = current.options.map(function(opt, idx) {
+    return '<button class="quiz-opt" onclick="selectQuizAnswer(' + idx + ', this)">' + opt + '</button>';
+  }).join('');
+}
+
+function selectQuizAnswer(optIndex, btn) {
   var opts = document.querySelectorAll('.quiz-opt');
   for (var i = 0; i < opts.length; i++) {
     opts[i].classList.remove('selected');
   }
   btn.classList.add('selected');
-  var res = document.getElementById('quiz-box-result');
-  if (res) res.style.display = 'block';
+
+  if (optIndex === quizQuestions[currentQuizIndex].correct) {
+    quizScore++;
+  }
+
+  setTimeout(function() {
+    currentQuizIndex++;
+    renderQuizQuestion();
+  }, 400);
 }
 
+function resetQuiz() {
+  currentQuizIndex = 0;
+  quizScore = 0;
+  renderQuizQuestion();
+}
+
+// ==================== КАЛЬКУЛЯТОР ====================
 function setCalcLang(lang, btn) {
   calcState.lang = lang;
   var items = btn.parentElement.querySelectorAll('.pill-opt');
@@ -300,7 +380,7 @@ function pickTeacher(name, langId) {
   showToast('Выбран преподаватель: ' + name);
 }
 
-// Отправка в PostgreSQL
+// ==================== ОТПРАВКА ЗАЯВКИ В POSTGRESQL ====================
 async function handleFormSubmit(e) {
   e.preventDefault();
   var name = document.getElementById('lead-name').value;
@@ -337,7 +417,7 @@ async function handleFormSubmit(e) {
   }
 }
 
-// CRM
+// ==================== CRM И СИНХРОНИЗАЦИЯ С БД ====================
 async function loadCrmTable() {
   var tbody = document.getElementById('crm-tbody');
   try {
@@ -368,7 +448,7 @@ function renderCrmRows(items) {
     if (item.Status_Name === 'В обработке') stClass = 'st-proc';
     if (item.Status_Name === 'Подтверждена') stClass = 'st-ok';
 
-    // Автоматическое определение преподавателя по языку
+    // Корректное назначение преподавателя: Ван Ли для китайского, Анна Смирнова для английского
     var isZh = (item.Language_Name && item.Language_Name.indexOf('Китай') !== -1) || item.Language_Code === 'ZH';
     var teacher = item.Teacher_Name;
     if (!teacher || teacher === 'Не назначен' || (isZh && teacher === 'Анна Смирнова')) {
@@ -380,7 +460,7 @@ function renderCrmRows(items) {
       ? '<span style="color:#10B981; font-weight:700;">✓ Одобрено</span>' 
       : '<button class="btn-action-small" onclick="quickConfirm(' + item.ID_Request + ')">Одобрить ✓</button>';
 
-    // Ровно 7 колонок: ID, Студент/Контакт, Язык, Дата занятия, Статус в БД, Преподаватель, Действие
+    // Ровно 7 ячеек <td> в соответствии с <th>
     return '<tr>' +
       '<td><strong>#' + item.ID_Request + '</strong></td>' +
       '<td><strong>' + item.Full_Name + '</strong><br><small style="color:#64748B;">' + item.Contact + '</small></td>' +
@@ -395,9 +475,16 @@ function renderCrmRows(items) {
   var tEl = document.getElementById('crm-stat-total');
   var nEl = document.getElementById('crm-stat-new');
   var cEl = document.getElementById('crm-stat-confirmed');
-  if (tEl) tEl.innerText = items.length;
-  if (nEl) nEl.innerText = items.filter(function(x) { return x.Status_Name === 'Новая'; }).length;
-  if (cEl) cEl.innerText = items.filter(function(x) { return x.Status_Name === 'Подтверждена'; }).length;
+  var convEl = document.getElementById('crm-stat-conversion');
+
+  var total = items.length;
+  var confirmed = items.filter(function(x) { return x.Status_Name === 'Подтверждена'; }).length;
+  var newCount = items.filter(function(x) { return x.Status_Name === 'Новая'; }).length;
+
+  if (tEl) tEl.innerText = total;
+  if (nEl) nEl.innerText = newCount;
+  if (cEl) cEl.innerText = confirmed;
+  if (convEl) convEl.innerText = total > 0 ? Math.round((confirmed / total) * 100) + '%' : '0%';
 }
 
 function filterCrmTable(query) {
@@ -433,7 +520,6 @@ async function quickConfirm(id) {
       }
     } catch (e) {}
 
-    // Fallback UI
     item.Status_Name = 'Подтверждена';
     renderCrmRows(allCrmData);
     showToast('Заявка #' + id + ' переведена в статус «Подтверждена»');
@@ -484,11 +570,14 @@ function showToast(msg) {
   }
 }
 
+// Экспорт в window
 window.toggleTheme = toggleTheme;
 window.changeLang = changeLang;
 window.switchRole = switchRole;
 window.scrollToSection = scrollToSection;
-window.answerQuiz = answerQuiz;
+window.renderQuizQuestion = renderQuizQuestion;
+window.selectQuizAnswer = selectQuizAnswer;
+window.resetQuiz = resetQuiz;
 window.setCalcLang = setCalcLang;
 window.setCalcFormat = setCalcFormat;
 window.updateCalcSlider = updateCalcSlider;
@@ -505,6 +594,7 @@ window.showToast = showToast;
 
 document.addEventListener('DOMContentLoaded', function() {
   initTheme();
+  renderQuizQuestion();
   var d = document.getElementById('lead-date');
   if (d) d.valueAsDate = new Date();
 });
