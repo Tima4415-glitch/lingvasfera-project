@@ -8,31 +8,26 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Получаем строку подключения к Supabase
-const rawConnectionString = process.env.DATABASE_POSTGRES_URL || 
-                            process.env.DATABASE_URL || 
-                            process.env.POSTGRES_URL || 
-                            'postgresql://postgres:postgres@localhost:5432/language_school';
+// Получаем строку подключения
+let rawConn = process.env.DATABASE_POSTGRES_URL || 
+              process.env.DATABASE_URL || 
+              process.env.POSTGRES_URL || 
+              'postgresql://postgres:postgres@localhost:5432/language_school';
 
-// Парсим параметры вручную, чтобы переопределить SSL для Supabase
-const poolConfig = {
-    connectionString: rawConnectionString,
-    ssl: {
-        rejectUnauthorized: false
-    }
-};
+// Отрезаем ?sslmode=require и любые GET-параметры, мешающие настройке SSL
+const cleanConn = rawConn.split('?')[0];
 
-// Если запуск локально без SSL
-if (rawConnectionString.includes('localhost') || rawConnectionString.includes('127.0.0.1')) {
-    delete poolConfig.ssl;
-}
+const isLocal = cleanConn.includes('localhost') || cleanConn.includes('127.0.0.1');
 
-const pool = new Pool(poolConfig);
+const pool = new Pool({
+    connectionString: cleanConn,
+    ssl: isLocal ? false : { rejectUnauthorized: false }
+});
 
 // Роут создания новой заявки
 app.post('/api/requests', async (req, res) => {
     try {
-        const { fullName, contact, languageId, preferredDate, comments } = req.body;
+        const { fullName, contact, languageId, preferredDate } = req.body;
         
         const langId = languageId ? parseInt(languageId, 10) : 1;
         const targetDate = preferredDate || new Date().toISOString().split('T')[0];
