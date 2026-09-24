@@ -28,16 +28,16 @@
 
   <!-- Шапка сайта -->
   <header>
-    <a href="#" class="logo-box" onclick="switchRole('guest')">
+    <a href="#" class="logo-box" onclick="backToMain()">
       <div class="logo-icon">LS</div>
       <div>Лингва<span>Сфера</span></div>
     </a>
     <nav class="main-nav">
-      <a class="active" onclick="switchRole('guest')" id="nav-courses">Программы</a>
-      <a onclick="scrollToSection('test-level-section')" id="nav-test">Тест уровня</a>
-      <a onclick="scrollToSection('calc-section')" id="nav-calc">Калькулятор</a>
-      <a onclick="scrollToSection('teachers-section')" id="nav-teachers">Преподаватели</a>
-      <a onclick="scrollToSection('booking-section')" id="nav-booking">Онлайн-запись</a>
+      <a class="active" onclick="backToMain(); scrollToSection('test-level-section')" id="nav-courses">Программы</a>
+      <a onclick="backToMain(); scrollToSection('test-level-section')" id="nav-test">Тест уровня</a>
+      <a onclick="backToMain(); scrollToSection('calc-section')" id="nav-calc">Калькулятор</a>
+      <a onclick="backToMain(); scrollToSection('teachers-section')" id="nav-teachers">Преподаватели</a>
+      <a onclick="backToMain(); scrollToSection('booking-section')" id="nav-booking">Онлайн-запись</a>
     </nav>
     <div class="header-right">
       <button id="theme-btn" class="theme-toggle-btn" onclick="toggleTheme()">
@@ -55,7 +55,7 @@
 
   <div class="page-wrapper">
 
-    <!-- ВИД 1: ПОЛЬЗОВАТЕЛЬ / ГОСТЬ -->
+    <!-- ВИД 1: ПОЛЬЗОВАТЕЛЬ / ГОСТЬ (ВИТРИНА) -->
     <div id="view-guest" class="view-pane active">
       
       <!-- Hero -->
@@ -161,17 +161,17 @@
         </div>
       </section>
 
-      <!-- Преподаватели -->
+      <!-- Компактные карточки преподавателей с переходом в профиль -->
       <section id="teachers-section">
         <div class="block-header" style="border:none; margin-bottom:20px;">
           <div>
             <div class="block-title" id="t-section-title">Педагогический состав школы</div>
-            <div class="block-desc" id="t-section-desc">Нажмите на карточку любого преподавателя, чтобы просмотреть полное портфолио</div>
+            <div class="block-desc" id="t-section-desc">Кликните по преподавателю, чтобы открыть его личный профиль и подробное портфолио</div>
           </div>
         </div>
         <div class="teachers-grid">
           <!-- Анастасия Четверикова -->
-          <div class="teacher-card" onclick="openTeacherModal('anastasia')">
+          <div class="teacher-card" onclick="openTeacherPage('anastasia')">
             <div class="teacher-avatar-row">
               <img src="anastasia.jpg" alt="Анастасия Четверикова" class="t-photo">
               <div>
@@ -180,16 +180,16 @@
               </div>
               <div class="t-rating">★ 4.98</div>
             </div>
-            <div class="t-bio">Опыт преподавания 9 лет. Специализируется на скоростном снятии языкового барьера и академическом письме. Нажмите для подробного портфолио.</div>
+            <div class="t-bio">Ведущий методист. 9 лет опыта скоростного преодоления языкового барьера. Нажмите для перехода в профиль →</div>
             <div class="t-chips">
               <span class="chip">General English</span>
               <span class="chip">IELTS</span>
             </div>
-            <button class="btn-select-teacher" onclick="event.stopPropagation(); pickTeacher('Анастасия Четверикова', 1)">Записаться к этому преподавателю</button>
+            <button class="btn-select-teacher" onclick="event.stopPropagation(); openTeacherPage('anastasia')">Открыть профиль преподавателя</button>
           </div>
 
           <!-- Джеки Чан -->
-          <div class="teacher-card" onclick="openTeacherModal('jackie')">
+          <div class="teacher-card" onclick="openTeacherPage('jackie')">
             <div class="teacher-avatar-row">
               <img src="jackie.jpg" alt="Джеки Чан" class="t-photo">
               <div>
@@ -198,16 +198,16 @@
               </div>
               <div class="t-rating">★ 5.0</div>
             </div>
-            <div class="t-bio">Мастер тональной фонетики, скорописи иероглифов и разговорной практики без языковых барьеров. Нажмите для подробного портфолио.</div>
+            <div class="t-bio">Мастер тональной фонетики, скорописи иероглифов и разговорного языка. Нажмите для перехода в профиль →</div>
             <div class="t-chips">
               <span class="chip">HSK 1-5</span>
               <span class="chip">Бизнес-Китай</span>
             </div>
-            <button class="btn-select-teacher" onclick="event.stopPropagation(); pickTeacher('Джеки Чан (成龙)', 2)">Записаться к этому преподавателю</button>
+            <button class="btn-select-teacher" onclick="event.stopPropagation(); openTeacherPage('jackie')">Открыть профиль преподавателя</button>
           </div>
 
           <!-- Марк Ковалев -->
-          <div class="teacher-card" onclick="openTeacherModal('mark')">
+          <div class="teacher-card" onclick="openTeacherPage('mark')">
             <div class="teacher-avatar-row">
               <img src="mark.jpg" alt="Марк Ковалёв" class="t-photo">
               <div>
@@ -216,12 +216,12 @@
               </div>
               <div class="t-rating">★ 4.95</div>
             </div>
-            <div class="t-bio">Практикующий переводчик конференций. Автор методики запоминания 1000 слов за месяц без зубрежки. Нажмите для подробного портфолио.</div>
+            <div class="t-bio">Синхронный переводчик международных саммитов. Автор методики мнемоники. Нажмите для перехода в профиль →</div>
             <div class="t-chips">
               <span class="chip">IT English</span>
               <span class="chip">TOEFL</span>
             </div>
-            <button class="btn-select-teacher" onclick="event.stopPropagation(); pickTeacher('Марк Ковалёв', 1)">Записаться к этому преподавателю</button>
+            <button class="btn-select-teacher" onclick="event.stopPropagation(); openTeacherPage('mark')">Открыть профиль преподавателя</button>
           </div>
         </div>
       </section>
@@ -270,6 +270,70 @@
         </form>
       </section>
 
+    </div>
+
+    <!-- ==================== ОТДЕЛЬНЫЙ ЭКРАН: ПРОФИЛЬ ПРЕПОДАВАТЕЛЯ ==================== -->
+    <div id="view-teacher-profile" class="view-pane">
+      <button class="btn-back-link" onclick="backToMain()">← Назад ко всем преподавателям</button>
+
+      <div class="profile-hero-card">
+        <div class="profile-main-grid">
+          <div class="profile-avatar-col">
+            <img id="p-photo" src="" alt="Фотография" class="profile-big-avatar">
+            <div class="profile-verified-badge">✓ Сертифицированный преподаватель школы</div>
+          </div>
+          <div class="profile-info-col">
+            <span class="profile-lang-tag" id="p-lang">Язык</span>
+            <h1 id="p-name" class="profile-name">Имя Преподавателя</h1>
+            <div id="p-role" class="profile-subtitle">Квалификация</div>
+            <div id="p-rating" class="profile-rating">★ 5.0 (200+ отзывов)</div>
+            
+            <p id="p-bio" class="profile-bio-text">Текст биографии преподавателя...</p>
+
+            <div class="profile-stats-bar">
+              <div class="p-stat-item">
+                <div class="p-stat-val" id="p-exp">9 лет</div>
+                <div class="p-stat-lbl">Опыт преподавания</div>
+              </div>
+              <div class="p-stat-item">
+                <div class="p-stat-val" id="p-students">340+</div>
+                <div class="p-stat-lbl">Учеников выпустили</div>
+              </div>
+              <div class="p-stat-item">
+                <div class="p-stat-val">100%</div>
+                <div class="p-stat-lbl">Сдача экзаменов</div>
+              </div>
+            </div>
+
+            <div class="profile-chips-box" id="p-chips"></div>
+
+            <div class="profile-actions-row">
+              <button class="btn-brand" id="p-book-btn">Записаться к этому преподавателю</button>
+              <button class="btn-secondary" onclick="backToMain(); scrollToSection('booking-section')">Перейти к форме записи</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Блок свободных слотов и отзывов -->
+      <div class="profile-extra-grid">
+        <div class="profile-extra-card">
+          <h3>📅 Ближайшие свободные слоты для уроков</h3>
+          <ul class="slots-list" id="p-slots">
+            <li>Понедельник, 15:00 — Свободно</li>
+            <li>Среда, 18:30 — Свободно</li>
+            <li>Пятница, 17:00 — Свободно</li>
+          </ul>
+        </div>
+        <div class="profile-extra-card">
+          <h3>💬 Отзывы учеников</h3>
+          <div class="review-box" id="p-review">
+            <strong>«Потрясающий преподаватель!»</strong>
+            <p>Уроки проходят на одном дыхании, уже через месяц свободно заговорил на иностранном языке.</p>
+            <small style="color:var(--text-muted);">— Алексей С., студент курса B2</small>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- ВИД 2: КАБИНЕТ УЧЕНИКА -->
@@ -434,25 +498,6 @@
       </div>
     </div>
 
-  </div>
-
-  <!-- МОДАЛЬНОЕ ОКНО ПОРТФОЛИО -->
-  <div id="teacher-modal" class="modal-backdrop" onclick="closeTeacherModal(event)">
-    <div class="modal-card" onclick="event.stopPropagation()">
-      <button class="modal-close-btn" onclick="closeTeacherModal()">&times;</button>
-      <div class="modal-body">
-        <img id="m-photo" src="" alt="Преподаватель" class="modal-avatar">
-        <div class="modal-info">
-          <div class="modal-badge" id="m-badge">Языковое направление</div>
-          <h2 id="m-name" class="modal-title">Имя Преподавателя</h2>
-          <div id="m-role" class="modal-subtitle">Квалификация и регалии</div>
-          <div id="m-rating" class="modal-rating">★ 5.0 (200+ отзывов)</div>
-          <p id="m-desc" class="modal-text">Подробная биография...</p>
-          <div class="modal-chips" id="m-chips"></div>
-          <button id="m-book-btn" class="btn-brand" style="margin-top:20px; width:100%; justify-content:center;">Записаться к этому преподавателю</button>
-        </div>
-      </div>
-    </div>
   </div>
 
   <div id="toast" class="toast-box">
