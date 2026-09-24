@@ -148,7 +148,7 @@ function safeSet(id, text, isHtml) {
   }
 }
 
-// Переключение языка
+// Переключение языка интерфейса
 function changeLang(lang) {
   activeLang = lang;
   var buttons = document.querySelectorAll('.lang-item');
@@ -236,7 +236,7 @@ function scrollToSection(id) {
   if (el) el.scrollIntoView({ behavior: 'smooth' });
 }
 
-// ==================== ИНТЕРАКТИВНЫЙ ОПРОСНИК (3 ВОПРОСА) ====================
+// ==================== ИНТЕРАКТИВНЫЙ ОПРОСНИК ====================
 var quizQuestions = [
   {
     q: '1. Choose the correct sentence: "If I _____ harder, I would have passed the exam."',
@@ -366,7 +366,10 @@ function applyCalcToForm() {
   scrollToSection('booking-section');
   var langSel = document.getElementById('lead-lang');
   var notes = document.getElementById('lead-notes');
-  if (langSel) langSel.value = (calcState.lang === 'zh') ? '2' : '1';
+  if (langSel) {
+    langSel.value = (calcState.lang === 'zh') ? '2' : '1';
+    syncTeacherSelect();
+  }
   if (notes) notes.value = 'Выбран расчет: ' + calcState.lessons + ' уроков, формат ' + (calcState.format === 'indiv' ? 'Индивидуально' : 'Группа');
   showToast('Параметры калькулятора перенесены в форму!');
 }
@@ -374,10 +377,34 @@ function applyCalcToForm() {
 function pickTeacher(name, langId) {
   scrollToSection('booking-section');
   var langSel = document.getElementById('lead-lang');
+  var teacherSel = document.getElementById('lead-teacher');
   var notes = document.getElementById('lead-notes');
-  if (langSel) langSel.value = langId;
-  if (notes) notes.value = 'Запись к преподавателю: ' + name;
+
+  if (langSel) {
+    langSel.value = langId;
+    syncTeacherSelect();
+  }
+  if (teacherSel) {
+    teacherSel.value = name;
+  }
+  if (notes && !notes.value) {
+    notes.value = 'Запись к преподавателю: ' + name;
+  }
   showToast('Выбран преподаватель: ' + name);
+}
+
+function syncTeacherSelect() {
+  var langSel = document.getElementById('lead-lang');
+  var teacherSel = document.getElementById('lead-teacher');
+  if (!langSel || !teacherSel) return;
+
+  if (langSel.value === '2') {
+    teacherSel.value = 'Ван Ли (王丽)';
+  } else {
+    if (teacherSel.value === 'Ван Ли (王丽)') {
+      teacherSel.value = 'Анна Смирнова';
+    }
+  }
 }
 
 // ==================== ОТПРАВКА ЗАЯВКИ В POSTGRESQL ====================
@@ -387,6 +414,7 @@ async function handleFormSubmit(e) {
   var contact = document.getElementById('lead-contact').value;
   var langId = parseInt(document.getElementById('lead-lang').value, 10);
   var date = document.getElementById('lead-date').value;
+  var teacherName = document.getElementById('lead-teacher') ? document.getElementById('lead-teacher').value : '';
   var notes = document.getElementById('lead-notes').value;
 
   var payload = {
@@ -394,6 +422,7 @@ async function handleFormSubmit(e) {
     contact: contact,
     language_id: langId,
     preferred_date: date,
+    teacher_name: teacherName,
     notes: notes
   };
 
@@ -427,9 +456,9 @@ async function loadCrmTable() {
     renderCrmRows(data);
   } catch (err) {
     allCrmData = [
-      { ID_Request: 101, Full_Name: 'Тимофей Смирнов', Contact: '+7 (915) 926-82-08', Language_Name: 'Китайский язык', Preferred_Date: '2026-09-24', Status_Name: 'Новая', Teacher_Name: 'Ван Ли (王丽)' },
-      { ID_Request: 102, Full_Name: 'Елена Васильева', Contact: 'elena@example.com', Language_Name: 'Китайский язык', Preferred_Date: '2026-10-19', Status_Name: 'В обработке', Teacher_Name: 'Ван Ли (王丽)' },
-      { ID_Request: 103, Full_Name: 'Дмитрий Кузнецов', Contact: '+7 (905) 555-44-11', Language_Name: 'Английский язык', Preferred_Date: '2026-10-20', Status_Name: 'Подтверждена', Teacher_Name: 'Анна Смирнова' }
+      { ID_Request: 101, Full_Name: 'Тимофей Смирнов', Contact: '+7 (915) 926-82-08', Notes: 'Подготовка к IELTS', Language_Name: 'Английский язык', Preferred_Date: '2026-09-24', Status_Name: 'Новая', Teacher_Name: 'Марк Ковалёв' },
+      { ID_Request: 102, Full_Name: 'Елена Васильева', Contact: 'elena@example.com', Notes: 'Китайский с нуля', Language_Name: 'Китайский язык', Preferred_Date: '2026-10-19', Status_Name: 'В обработке', Teacher_Name: 'Ван Ли (王丽)' },
+      { ID_Request: 103, Full_Name: 'Дмитрий Кузнецов', Contact: '+7 (905) 555-44-11', Notes: 'Разговорный курс', Language_Name: 'Английский язык', Preferred_Date: '2026-10-20', Status_Name: 'Подтверждена', Teacher_Name: 'Анна Смирнова' }
     ];
     renderCrmRows(allCrmData);
   }
@@ -448,10 +477,9 @@ function renderCrmRows(items) {
     if (item.Status_Name === 'В обработке') stClass = 'st-proc';
     if (item.Status_Name === 'Подтверждена') stClass = 'st-ok';
 
-    // Корректное назначение преподавателя: Ван Ли для китайского, Анна Смирнова для английского
-    var isZh = (item.Language_Name && item.Language_Name.indexOf('Китай') !== -1) || item.Language_Code === 'ZH';
     var teacher = item.Teacher_Name;
-    if (!teacher || teacher === 'Не назначен' || (isZh && teacher === 'Анна Смирнова')) {
+    if (!teacher || teacher === 'Не назначен') {
+      var isZh = (item.Language_Name && item.Language_Name.indexOf('Китай') !== -1) || item.Language_Code === 'ZH';
       teacher = isZh ? 'Ван Ли (王丽)' : 'Анна Смирнова';
     }
 
@@ -460,14 +488,17 @@ function renderCrmRows(items) {
       ? '<span style="color:#10B981; font-weight:700;">✓ Одобрено</span>' 
       : '<button class="btn-action-small" onclick="quickConfirm(' + item.ID_Request + ')">Одобрить ✓</button>';
 
-    // Ровно 7 ячеек <td> в соответствии с <th>
+    var notesHtml = item.Notes 
+      ? '<div style="margin-top:4px; font-size:11px; color:#475569; background:rgba(0,0,0,0.04); padding:3px 6px; border-radius:4px;">💬 ' + item.Notes + '</div>' 
+      : '';
+
     return '<tr>' +
       '<td><strong>#' + item.ID_Request + '</strong></td>' +
-      '<td><strong>' + item.Full_Name + '</strong><br><small style="color:#64748B;">' + item.Contact + '</small></td>' +
+      '<td><strong>' + item.Full_Name + '</strong><br><small style="color:#64748B;">' + item.Contact + '</small>' + notesHtml + '</td>' +
       '<td><span class="chip">' + (item.Language_Name || 'Английский язык') + '</span></td>' +
       '<td>' + (item.Preferred_Date || '—') + '</td>' +
       '<td><span class="badge-status ' + stClass + '">● ' + item.Status_Name + '</span></td>' +
-      '<td>' + teacher + '</td>' +
+      '<td><strong>' + teacher + '</strong></td>' +
       '<td>' + actionBtn + '</td>' +
     '</tr>';
   }).join('');
@@ -490,7 +521,9 @@ function renderCrmRows(items) {
 function filterCrmTable(query) {
   var q = query.toLowerCase();
   var filtered = allCrmData.filter(function(i) {
-    return i.Full_Name.toLowerCase().indexOf(q) !== -1 || i.Contact.toLowerCase().indexOf(q) !== -1;
+    return i.Full_Name.toLowerCase().indexOf(q) !== -1 || 
+           i.Contact.toLowerCase().indexOf(q) !== -1 ||
+           (i.Notes && i.Notes.toLowerCase().indexOf(q) !== -1);
   });
   renderCrmRows(filtered);
 }
@@ -510,7 +543,7 @@ async function quickConfirm(id) {
       var res = await fetch('/api/requests/' + id + '/status', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status_id: 2 }) // 2 = Подтверждена в БД
+        body: JSON.stringify({ status_id: 2 })
       });
       if (res.ok) {
         item.Status_Name = 'Подтверждена';
@@ -583,6 +616,7 @@ window.setCalcFormat = setCalcFormat;
 window.updateCalcSlider = updateCalcSlider;
 window.applyCalcToForm = applyCalcToForm;
 window.pickTeacher = pickTeacher;
+window.syncTeacherSelect = syncTeacherSelect;
 window.handleFormSubmit = handleFormSubmit;
 window.loadCrmTable = loadCrmTable;
 window.filterCrmTable = filterCrmTable;
@@ -595,6 +629,7 @@ window.showToast = showToast;
 document.addEventListener('DOMContentLoaded', function() {
   initTheme();
   renderQuizQuestion();
+  syncTeacherSelect();
   var d = document.getElementById('lead-date');
   if (d) d.valueAsDate = new Date();
 });
