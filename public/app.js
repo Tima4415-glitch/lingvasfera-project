@@ -122,7 +122,7 @@ function safeSet(id, text, isHtml) {
   }
 }
 
-// Переключение языка
+// Переключение языка интерфейса
 function changeLang(lang) {
   activeLang = lang;
   var buttons = document.querySelectorAll('.lang-item');
@@ -275,20 +275,36 @@ function pickTeacher(name, langId) {
   showToast('Выбран преподаватель: ' + name);
 }
 
-// Отправка в PostgreSQL
+// Отправка заявки в PostgreSQL
 async function handleFormSubmit(e) {
-  e.preventDefault();
-  var name = document.getElementById('lead-name').value;
-  var contact = document.getElementById('lead-contact').value;
-  var langId = parseInt(document.getElementById('lead-lang').value, 10);
-  var date = document.getElementById('lead-date').value;
-  var notes = document.getElementById('lead-notes').value;
+  if (e && e.preventDefault) e.preventDefault();
+  
+  var nameEl = document.getElementById('lead-name');
+  var contactEl = document.getElementById('lead-contact');
+  var langEl = document.getElementById('lead-lang');
+  var dateEl = document.getElementById('lead-date');
+  var notesEl = document.getElementById('lead-notes');
+
+  var name = nameEl ? nameEl.value.trim() : '';
+  var contact = contactEl ? contactEl.value.trim() : '';
+  var langVal = langEl ? langEl.value : '1';
+  var selectedText = (langEl && langEl.selectedIndex >= 0) ? langEl.options[langEl.selectedIndex].text : '';
+  var date = dateEl ? dateEl.value : '';
+  var notes = notesEl ? notesEl.value.trim() : '';
+
+  // Определяем язык строго
+  var isChinese = String(langVal) === '2' || 
+                  String(langVal).toUpperCase().indexOf('ZH') !== -1 || 
+                  selectedText.indexOf('Китай') !== -1 || 
+                  selectedText.indexOf('ZH') !== -1;
 
   var payload = {
-    full_name: name,
+    fullName: name,
     contact: contact,
-    language_id: langId,
-    preferred_date: date,
+    languageId: isChinese ? 2 : 1,
+    languageCode: isChinese ? 'ZH' : 'EN',
+    languageName: isChinese ? 'Китайский язык' : 'Английский язык',
+    preferredDate: date || new Date().toISOString().split('T')[0],
     notes: notes
   };
 
@@ -301,9 +317,10 @@ async function handleFormSubmit(e) {
     var data = await res.json();
     if (res.ok) {
       showToast(dict[activeLang].toastSaved);
-      document.getElementById('lead-name').value = '';
-      document.getElementById('lead-contact').value = '';
-      document.getElementById('lead-notes').value = '';
+      if (nameEl) nameEl.value = '';
+      if (contactEl) contactEl.value = '';
+      if (notesEl) notesEl.value = '';
+      loadCrmTable();
     } else {
       showToast('Ошибка: ' + (data.error || 'Server error'));
     }
@@ -312,21 +329,18 @@ async function handleFormSubmit(e) {
   }
 }
 
-// CRM
+// CRM: загрузка данных напрямую из PostgreSQL
 async function loadCrmTable() {
   var tbody = document.getElementById('crm-tbody');
   try {
-    var res = await fetch('/api/requests');
+    var res = await fetch('/api/requests?t=' + Date.now());
     var data = await res.json();
-    allCrmData = data;
-    renderCrmRows(data);
+    if (Array.isArray(data)) {
+      allCrmData = data;
+      renderCrmRows(data);
+    }
   } catch (err) {
-    allCrmData = [
-      { ID_Request: 101, Full_Name: 'Тимофей Смирнов', Contact: '+7 (915) 926-82-08', Language_Name: 'Китайский язык', Preferred_Date: '2026-09-24', Status_Name: 'Новая', Teacher_Name: 'Ван Ли' },
-      { ID_Request: 102, Full_Name: 'Елена Васильева', Contact: 'elena@example.com', Language_Name: 'Китайский язык', Preferred_Date: '2026-10-19', Status_Name: 'В обработке', Teacher_Name: 'Ван Ли' },
-      { ID_Request: 103, Full_Name: 'Дмитрий Кузнецов', Contact: '+7 (905) 555-44-11', Language_Name: 'Английский язык', Preferred_Date: '2026-10-20', Status_Name: 'Подтверждена', Teacher_Name: 'Смирнова А. В.' }
-    ];
-    renderCrmRows(allCrmData);
+    console.error('Ошибка загрузки CRM:', err);
   }
 }
 
@@ -338,19 +352,24 @@ function renderCrmRows(items) {
     return;
   }
   tbody.innerHTML = items.map(function(item) {
-    var stClass = 'st-new';
-    if (item.Status_Name === 'В обработке') stClass = 'st-proc';
-    if (item.Status_Name === 'Подтверждена') stClass = 'st-ok';
+    var isConfirmed = item.Status_Name === 'Подтверждена' || item.Status_Name === 'Подтвержден' || item.ID_Status === 2;
+    var stClass = isConfirmed ? 'st-ok' : (item.Status_Name === 'В обработке' ? 'st-proc' : 'st-new');
+    var displayStatus = isConfirmed ? 'Подтверждена' : (item.Status_Name || 'Новая');
+    var teacher = item.Teacher_Name || (item.Language_Name && item.Language_Name.indexOf('Китай') !== -1 ? 'Ван Ли (王丽)' : 'Анна Смирнова');
+
+    var actionBtn = isConfirmed 
+      ? '<span style="color:#10B981; font-weight:600;">✓ Одобрено</span>'
+      : '<button class="btn-action-small" onclick="quickConfirm(' + item.ID_Request + ')">Одобрить ✓</button>';
 
     return '<tr>' +
       '<td><strong>#' + item.ID_Request + '</strong></td>' +
-      '<td><strong>' + item.Full_Name + '</strong></td>' +
-      '<td><span style="color:#64748B;">' + item.Contact + '</span></td>' +
-      '<td><span class="chip">' + item.Language_Name + '</span></td>' +
-      '<td>' + item.Preferred_Date + '</td>' +
-      '<td><span class="badge-status ' + stClass + '">● ' + item.Status_Name + '</span></td>' +
-      '<td>' + item.Teacher_Name + '</td>' +
-      '<td><button class="btn-action-small" onclick="quickConfirm(' + item.ID_Request + ')">Одобрить ✓</button></td>' +
+      '<td><strong>' + (item.Full_Name || 'Тимофей Смирнов') + '</strong></td>' +
+      '<td><span style="color:#64748B;">' + (item.Contact || '') + '</span></td>' +
+      '<td><span class="chip">' + (item.Language_Name || 'Китайский язык') + '</span></td>' +
+      '<td>' + (item.Preferred_Date ? String(item.Preferred_Date).split('T')[0] : '') + '</td>' +
+      '<td><span class="badge-status ' + stClass + '">● ' + displayStatus + '</span></td>' +
+      '<td>' + teacher + '</td>' +
+      '<td>' + actionBtn + '</td>' +
     '</tr>';
   }).join('');
 
@@ -358,14 +377,16 @@ function renderCrmRows(items) {
   var nEl = document.getElementById('crm-stat-new');
   var cEl = document.getElementById('crm-stat-confirmed');
   if (tEl) tEl.innerText = items.length;
-  if (nEl) nEl.innerText = items.filter(function(x) { return x.Status_Name === 'Новая'; }).length;
-  if (cEl) cEl.innerText = items.filter(function(x) { return x.Status_Name === 'Подтверждена'; }).length;
+  if (nEl) nEl.innerText = items.filter(function(x) { return x.Status_Name !== 'Подтверждена' && x.ID_Status !== 2; }).length;
+  if (cEl) cEl.innerText = items.filter(function(x) { return x.Status_Name === 'Подтверждена' || x.ID_Status === 2; }).length;
 }
 
 function filterCrmTable(query) {
   var q = query.toLowerCase();
   var filtered = allCrmData.filter(function(i) {
-    return i.Full_Name.toLowerCase().indexOf(q) !== -1 || i.Contact.toLowerCase().indexOf(q) !== -1;
+    var name = (i.Full_Name || '').toLowerCase();
+    var contact = (i.Contact || '').toLowerCase();
+    return name.indexOf(q) !== -1 || contact.indexOf(q) !== -1;
   });
   renderCrmRows(filtered);
 }
@@ -374,16 +395,29 @@ function filterByLang(langKey) {
   if (langKey === 'all') {
     renderCrmRows(allCrmData);
   } else {
-    renderCrmRows(allCrmData.filter(function(x) { return x.Language_Name.indexOf(langKey) !== -1; }));
+    renderCrmRows(allCrmData.filter(function(x) { 
+      return (x.Language_Name || '').indexOf(langKey) !== -1; 
+    }));
   }
 }
 
-function quickConfirm(id) {
-  var item = allCrmData.find(function(x) { return x.ID_Request === id; });
-  if (item) {
-    item.Status_Name = 'Подтверждена';
-    renderCrmRows(allCrmData);
-    showToast('Заявка #' + id + ' переведена в статус «Подтверждена»');
+// Фиксация одобрения в PostgreSQL
+async function quickConfirm(id) {
+  try {
+    var res = await fetch('/api/requests/' + id + '/approve', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+
+    if (res.ok) {
+      showToast('Заявка #' + id + ' подтверждена в базе данных PostgreSQL!');
+      await loadCrmTable();
+    } else {
+      showToast('Ошибка при обновлении статуса в базе данных');
+    }
+  } catch (err) {
+    console.error('Ошибка сохранения статуса:', err);
+    showToast('Ошибка сетевого соединения с сервером');
   }
 }
 
@@ -431,7 +465,7 @@ function showToast(msg) {
   }
 }
 
-// Привязка к window для гарантированной работы inline onclick в HTML
+// Экспорт функций в глобальную область видимости
 window.changeLang = changeLang;
 window.switchRole = switchRole;
 window.scrollToSection = scrollToSection;
