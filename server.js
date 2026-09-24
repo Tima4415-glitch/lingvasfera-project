@@ -6,130 +6,101 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Строка подключения к Supabase PostgreSQL
-const connString = process.env.DATABASE_POSTGRES_URL || 
-                   process.env.DATABASE_URL || 
-                   'postgresql://postgres:postgres@localhost:5432/language_school';
+// Настройки подключения к PostgreSQL (Supabase / Vercel или локально)
+const connString = process.env.DATABASE_POSTGRES_URL || process.env.DATABASE_URL;
 
-const dbUrl = new URL(connString.replace('postgresql://', 'http://').replace('postgres://', 'http://'));
-const isLocal = dbUrl.hostname === 'localhost' || dbUrl.hostname === '127.0.0.1';
+const pool = new Pool(
+    connString 
+        ? { connectionString: connString, ssl: { rejectUnauthorized: false } }
+        : {
+            user: process.env.DB_USER || 'postgres',
+            host: process.env.DB_HOST || 'localhost',
+            database: process.env.DB_NAME || 'language_school',
+            password: process.env.DB_PASSWORD || 'root',
+            port: process.env.DB_PORT || 5432,
+        }
+);
 
-const pool = new Pool({
-  user: decodeURIComponent(dbUrl.username),
-  password: decodeURIComponent(dbUrl.password),
-  host: dbUrl.hostname,
-  port: dbUrl.port ? parseInt(dbUrl.port, 10) : 5432,
-  database: dbUrl.pathname.replace('/', ''),
-  ssl: isLocal ? false : { rejectUnauthorized: false }
+// 1. Получение списка языков
+app.get('/api/languages', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM "Language" ORDER BY "ID_Language" ASC');
+        res.json(result.rows);
+    } catch (err) {
+        console.error('Ошибка получения языков:', err);
+        res.status(500).json({ error: 'Ошибка сервера при получении языков' });
+    }
 });
 
-// Инициализация структуры таблиц при первом старте
-async function initDb() {
-  try {
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS "Role" (
-        "ID_Role" SERIAL PRIMARY KEY,
-        "Role_Name" VARCHAR(50) NOT NULL UNIQUE
-      );
-      CREATE TABLE IF NOT EXISTS "Language" (
-        "ID_Language" SERIAL PRIMARY KEY,
-        "Language_Code" VARCHAR(5) NOT NULL UNIQUE,
-        "Language_Name" VARCHAR(100) NOT NULL
-      );
-      CREATE TABLE IF NOT EXISTS "Request_Status" (
-        "ID_Status" SERIAL PRIMARY KEY,
-        "Status_Name" VARCHAR(50) NOT NULL UNIQUE
-      );
-      CREATE TABLE IF NOT EXISTS "Lesson_Request" (
-        "ID_Request" SERIAL PRIMARY KEY,
-        "Full_Name" VARCHAR(150) NOT NULL,
-        "Contact" VARCHAR(100) NOT NULL,
-        "ID_Language" INT NOT NULL REFERENCES "Language"("ID_Language"),
-        "Preferred_Date" DATE NOT NULL,
-        "ID_Status" INT NOT NULL DEFAULT 1 REFERENCES "Request_Status"("ID_Status"),
-        "Created_At" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-      INSERT INTO "Request_Status" ("ID_Status", "Status_Name") VALUES (1, 'Новая'), (2, 'Подтверждена') ON CONFLICT DO NOTHING;
-      INSERT INTO "Language" ("ID_Language", "Language_Code", "Language_Name") VALUES (1, 'EN', 'Английский язык'), (2, 'ZH', 'Китайский язык') ON CONFLICT DO NOTHING;
-    `);
-  } catch (err) {
-    console.error('Ошибка инициализации таблиц:', err.message);
-  }
-}
-initDb();
-
-// Роут создания новой заявки
+// 2. Отправка новой заявки с формы
 app.post('/api/requests', async (req, res) => {
-  try {
-    const b = req.body || {};
-    const fullName = b.fullName || b.name || 'Тимофей Смирнов';
-    const contact = b.contact || b.phone || 'Не указан';
-    const rawLang = b.languageId || b.languageCode || 'EN';
-    const preferredDate = b.preferredDate || new Date().toISOString().split('T')[0];
-
-    const isZh = String(rawLang).toUpperCase().includes('ZH') || String(rawLang) === '2';
-    const targetCode = isZh ? 'ZH' : 'EN';
-    const targetName = isZh ? 'Китайский язык' : 'Английский язык';
-
-    const langRes = await pool.query(
-      `INSERT INTO "Language" ("Language_Code", "Language_Name") 
-       VALUES ($1, $2) 
-       ON CONFLICT ("Language_Code") DO UPDATE SET "Language_Name" = EXCLUDED."Language_Name" 
-       RETURNING "ID_Language";`,
-      [targetCode, targetName]
-    );
-    const langId = langRes.rows[0].ID_Language;
-
-    const query = `
-      INSERT INTO "Lesson_Request" ("Full_Name", "Contact", "ID_Language", "Preferred_Date", "ID_Status") 
-      VALUES ($1, $2, $3, $4, 1) RETURNING *;
-    `;
-    const result = await pool.query(query, [fullName, contact, langId, preferredDate]);
-    res.status(201).json({ success: true, request: result.rows[0] });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+    const { full_name, contact, language_id, preferred_date } = req.body;
+    if (!full_name || !contact || !language_id || !preferred_date) {
+        return res.status(400).json({ error: 'Все поля обязательны для заполнения' });
+    }
+    try {
+        const query = `
+            INSERT INTO "Lesson_Request" 
+                ("Full_Name", "Contact", "ID_Language", "Preferred_Date", "ID_Status") 
+            VALUES ($1, $2, $3, $4, 1) RETURNING *;
+        `;
+        const values = [full_name, contact, language_id, preferred_date];
+        const result = await pool.query(query, values);
+        res.status(201).json({ success: true, request: result.rows[0] });
+    } catch (err) {
+        console.error('Ошибка сохранения заявки:', err);
+        res.status(500).json({ error: err.message || 'Ошибка сервера при сохранении заявки' });
+    }
 });
 
-// Роут выгрузки реестра заявок в CRM
+// 3. Получение всех заявок (для CRM панели администратора)
 app.get('/api/requests', async (req, res) => {
-  try {
-    const query = `
-      SELECT lr."ID_Request", lr."Full_Name", lr."Contact", l."Language_Name", 
-             lr."Preferred_Date", rs."Status_Name", lr."ID_Status",
-             CASE 
-                 WHEN l."Language_Name" ILIKE '%Китай%' OR l."Language_Code" = 'ZH' THEN 'Ван Ли (王丽)'
-                 ELSE 'Анна Смирнова'
-             END as "Teacher_Name"
-      FROM "Lesson_Request" lr
-      LEFT JOIN "Language" l ON lr."ID_Language" = l."ID_Language"
-      LEFT JOIN "Request_Status" rs ON lr."ID_Status" = rs."ID_Status"
-      ORDER BY lr."ID_Request" DESC;
-    `;
-    const result = await pool.query(query);
-    res.status(200).json(result.rows);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+    try {
+        const query = `
+            SELECT 
+                r."ID_Request", 
+                r."Full_Name", 
+                r."Contact", 
+                l."Language_Name", 
+                TO_CHAR(r."Preferred_Date", 'YYYY-MM-DD') AS "Preferred_Date", 
+                s."Status_Name",
+                COALESCE(u."Full_Name", 'Не назначен') AS "Teacher_Name"
+            FROM "Lesson_Request" r
+            JOIN "Language" l ON r."ID_Language" = l."ID_Language"
+            JOIN "Request_Status" s ON r."ID_Status" = s."ID_Status"
+            LEFT JOIN "User" u ON r."Assigned_Teacher_ID" = u."ID_User"
+            ORDER BY r."ID_Request" DESC;
+        `;
+        const result = await pool.query(query);
+        res.json(result.rows);
+    } catch (err) {
+        console.error('Ошибка получения заявок:', err);
+        res.status(500).json({ error: 'Ошибка сервера при получении заявок' });
+    }
 });
 
-// Роут подтверждения заявки
-app.post('/api/requests/:id/approve', async (req, res) => {
-  try {
-    const reqId = parseInt(req.params.id, 10);
-    await pool.query(`UPDATE "Lesson_Request" SET "ID_Status" = 2 WHERE "ID_Request" = $1;`, [reqId]);
-    res.status(200).json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+// 4. Смена статуса заявки
+app.patch('/api/requests/:id/status', async (req, res) => {
+    const { id } = req.params;
+    const { status_id } = req.body;
+    try {
+        const result = await pool.query(
+            'UPDATE "Lesson_Request" SET "ID_Status" = $1 WHERE "ID_Request" = $2 RETURNING *',
+            [status_id, id]
+        );
+        res.json({ success: true, updated: result.rows[0] });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
-// Локальный запуск (если не в Serverless на Vercel)
+// Совместимость с Vercel Serverless
 if (process.env.VERCEL !== '1') {
-  app.listen(PORT, () => console.log(`Сервер успешно запущен на порту ${PORT}`));
+    app.listen(PORT, () => {
+        console.log(`Сервер языковой школы «ЛингваСфера» запущен на http://localhost:${PORT}`);
+    });
 }
 
 module.exports = app;
