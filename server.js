@@ -9,10 +9,15 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Настройки подключения к PostgreSQL (локально или через DATABASE_URL)
-const pool = new Pool(
-    process.env.DATABASE_URL 
-        ? { connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } }
-        : {
+const connectionString = process.env.DATABASE_POSTGRES_URL || 
+                         process.env.DATABASE_URL || 
+                         process.env.POSTGRES_URL || 
+                         'postgresql://postgres:postgres@localhost:5432/language_school';
+
+const pool = new Pool({
+    connectionString: connectionString,
+    ssl: connectionString.includes('localhost') ? false : { rejectUnauthorized: false }
+});
             user: process.env.DB_USER || 'postgres',
             host: process.env.DB_HOST || 'localhost',
             database: process.env.DB_NAME || 'language_school',
