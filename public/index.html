@@ -174,6 +174,7 @@
           </div>
         </div>
         <div class="teachers-grid">
+          <!-- Анна Смирнова -->
           <div class="teacher-card">
             <div class="teacher-avatar-row">
               <div class="t-avatar" style="background:#DBEAFE; color:#1D4ED8;">АС</div>
@@ -190,6 +191,8 @@
             </div>
             <button class="btn-select-teacher" onclick="pickTeacher('Анна Смирнова', 1)">Записаться к этому преподавателю</button>
           </div>
+
+          <!-- Ван Ли -->
           <div class="teacher-card">
             <div class="teacher-avatar-row">
               <div class="t-avatar" style="background:#FEE2E2; color:#DC2626;">ВЛ</div>
@@ -204,8 +207,10 @@
               <span class="chip">HSK 1-5</span>
               <span class="chip">Бизнес-Китай</span>
             </div>
-            <button class="btn-select-teacher" onclick="pickTeacher('Ван Ли', 2)">Записаться к этому преподавателю</button>
+            <button class="btn-select-teacher" onclick="pickTeacher('Ван Ли (王丽)', 2)">Записаться к этому преподавателю</button>
           </div>
+
+          <!-- Марк Ковалев -->
           <div class="teacher-card">
             <div class="teacher-avatar-row">
               <div class="t-avatar" style="background:#F3E8FF; color:#7E22CE;">МК</div>
@@ -225,7 +230,7 @@
         </div>
       </section>
 
-      <!-- Форма записи (PostgreSQL) -->
+      <!-- Форма записи (PostgreSQL) с выбором преподавателя и пожеланиями -->
       <section id="booking-section" class="form-wrapper">
         <div class="form-title-center" id="f-main-title">Электронная запись на вводный урок</div>
         <div class="form-desc-center" id="f-main-desc">После отправки заявка мгновенно попадает в базу данных PostgreSQL</div>
@@ -243,7 +248,7 @@
           <div class="form-row">
             <div>
               <label>Изучаемый язык *</label>
-              <select id="lead-lang" class="input-field">
+              <select id="lead-lang" class="input-field" onchange="syncTeacherSelect()">
                 <option value="1">Английский язык (EN)</option>
                 <option value="2">Китайский язык (ZH)</option>
               </select>
@@ -254,8 +259,16 @@
             </div>
           </div>
           <div class="form-control-full">
-            <label>Пожелания или выбранный преподаватель:</label>
-            <input type="text" id="lead-notes" class="input-field" placeholder="Например: хочу готовиться к HSK с носителем языка">
+            <label>Предпочитаемый преподаватель:</label>
+            <select id="lead-teacher" class="input-field">
+              <option value="Анна Смирнова">Анна Смирнова (Английский)</option>
+              <option value="Марк Ковалёв">Марк Ковалёв (Английский / TOEFL)</option>
+              <option value="Ван Ли (王丽)">Ван Ли (Китайский / HSK)</option>
+            </select>
+          </div>
+          <div class="form-control-full">
+            <label>Пожелания к обучению (сохраняются в БД):</label>
+            <input type="text" id="lead-notes" class="input-field" placeholder="Например: подготовка к сдаче экзамена, упор на разговорную речь">
           </div>
           <button type="submit" class="btn-submit-main" id="f-submit-btn">Отправить заявку в базу данных PostgreSQL</button>
         </form>
@@ -408,7 +421,7 @@
           <thead>
             <tr>
               <th>ID</th>
-              <th>Студент / Контакт</th>
+              <th>Студент / Контакт / Пожелания</th>
               <th>Язык</th>
               <th>Дата занятия</th>
               <th>Статус в БД</th>
