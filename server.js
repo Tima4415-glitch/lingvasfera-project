@@ -53,6 +53,17 @@ function getPool() {
   return pool;
 }
 
+// Проверка и добавление колонки Notes при старте
+async function ensureNotesColumn() {
+  try {
+    const db = getPool();
+    await db.query(`ALTER TABLE "Lesson_Request" ADD COLUMN IF NOT EXISTS "Notes" TEXT;`);
+  } catch (err) {
+    // Игнорируем, если прав нет или колонка уже существует
+  }
+}
+ensureNotesColumn();
+
 // 1. Получение списка языков
 app.get('/api/languages', async (req, res) => {
   try {
@@ -65,11 +76,11 @@ app.get('/api/languages', async (req, res) => {
   }
 });
 
-// 2. Отправка новой заявки с формы
+// 2. Отправка новой заявки с сохранением пожеланий (Notes) и преподавателя
 app.post('/api/requests', async (req, res) => {
-  const { full_name, contact, language_id, preferred_date } = req.body;
+  const { full_name, contact, language_id, preferred_date, notes, teacher_name } = req.body;
   if (!full_name || !contact || !language_id || !preferred_date) {
-    return res.status(400).json({ error: 'Все поля обязательны для заполнения' });
+    return res.status(400).json({ error: 'Все обязательные поля должны быть заполнены' });
   }
 
   try {
@@ -98,12 +109,21 @@ app.post('/api/requests', async (req, res) => {
       `INSERT INTO "Request_Status" ("ID_Status", "Status_Name") VALUES (1, 'Новая') ON CONFLICT DO NOTHING;`
     );
 
+    // Определение преподавателя (если указан явно в форме или выбран из карточки)
+    let assignedTeacher = teacher_name || null;
+    if (!assignedTeacher) {
+      if (notes && notes.includes('Марк Ковалёв')) assignedTeacher = 'Марк Ковалёв';
+      else if (notes && notes.includes('Ван Ли')) assignedTeacher = 'Ван Ли (王丽)';
+      else if (notes && notes.includes('Анна Смирнова')) assignedTeacher = 'Анна Смирнова';
+    }
+
+    // Сохранение в Lesson_Request с пожеланиями (Notes)
     const query = `
       INSERT INTO "Lesson_Request" 
-        ("Full_Name", "Contact", "ID_Language", "Preferred_Date", "ID_Status") 
-      VALUES ($1, $2, $3, $4, 1) RETURNING *;
+        ("Full_Name", "Contact", "ID_Language", "Preferred_Date", "ID_Status", "Notes") 
+      VALUES ($1, $2, $3, $4, 1, $5) RETURNING *;
     `;
-    const values = [full_name, contact, actualLangId, preferred_date];
+    const values = [full_name, contact, actualLangId, preferred_date, notes || null];
     const result = await db.query(query, values);
 
     res.status(201).json({ success: true, request: result.rows[0] });
@@ -113,7 +133,7 @@ app.post('/api/requests', async (req, res) => {
   }
 });
 
-// 3. Выгрузка заявок для CRM с автоопределением преподавателя
+// 3. Выгрузка заявок для CRM с автоопределением педагога (Анна, Ван Ли, Марк Ковалев) и показом Notes
 app.get('/api/requests', async (req, res) => {
   try {
     const db = getPool();
@@ -122,6 +142,7 @@ app.get('/api/requests', async (req, res) => {
         r."ID_Request", 
         r."Full_Name", 
         r."Contact", 
+        r."Notes",
         l."Language_Name", 
         l."Language_Code",
         TO_CHAR(r."Preferred_Date", 'YYYY-MM-DD') AS "Preferred_Date", 
@@ -129,8 +150,10 @@ app.get('/api/requests', async (req, res) => {
         COALESCE(
           u."Full_Name",
           CASE 
-            WHEN l."Language_Code" = 'ZH' OR l."Language_Name" ILIKE '%Китай%' 
-            THEN 'Ван Ли (王丽)'
+            WHEN r."Notes" ILIKE '%Марк%' THEN 'Марк Ковалёв'
+            WHEN r."Notes" ILIKE '%Ван Ли%' THEN 'Ван Ли (王丽)'
+            WHEN r."Notes" ILIKE '%Смирнов%' THEN 'Анна Смирнова'
+            WHEN l."Language_Code" = 'ZH' OR l."Language_Name" ILIKE '%Китай%' THEN 'Ван Ли (王丽)'
             ELSE 'Анна Смирнова'
           END
         ) AS "Teacher_Name"
