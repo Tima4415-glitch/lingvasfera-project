@@ -1,206 +1,135 @@
-// ==================== УПРАВЛЕНИЕ ТЕМОЙ (LIGHT / DARK) ====================
-function initTheme() {
-  const savedTheme = localStorage.getItem('lingva_theme');
-  if (savedTheme === 'dark') {
-    document.body.classList.add('dark-theme');
-    updateThemeButton(true);
-  } else {
-    document.body.classList.remove('dark-theme');
-    updateThemeButton(false);
-  }
-}
+const express = require('express');
+const { Pool } = require('pg');
+const path = require('path');
 
-function toggleTheme() {
-  const isDark = document.body.classList.toggle('dark-theme');
-  localStorage.setItem('lingva_theme', isDark ? 'dark' : 'light');
-  updateThemeButton(isDark);
-}
+const app = express();
+const PORT = process.env.PORT || 3000;
 
-function updateThemeButton(isDark) {
-  const icon = document.getElementById('theme-icon');
-  const text = document.getElementById('theme-text');
-  if (icon) icon.innerText = isDark ? '☀️' : '🌙';
-  if (text) text.innerText = isDark ? 'Светлая' : 'Тёмная';
-}
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(express.static(path.join(__dirname, 'public')));
 
-window.toggleTheme = toggleTheme;
+// Строка подключения к Supabase PostgreSQL
+const connString = process.env.DATABASE_POSTGRES_URL || 
+                   process.env.DATABASE_URL || 
+                   'postgresql://postgres:postgres@localhost:5432/language_school';
 
-// ==================== ВЫБОР РОЛИ И КУРСА ====================
-function setRole(role) {
-  const userView = document.getElementById('view-user');
-  const crmView = document.getElementById('view-crm');
-  const buttons = document.querySelectorAll('.btn-role');
+const dbUrl = new URL(connString.replace('postgresql://', 'http://').replace('postgres://', 'http://'));
+const isLocal = dbUrl.hostname === 'localhost' || dbUrl.hostname === '127.0.0.1';
 
-  buttons.forEach(btn => btn.classList.remove('active'));
-
-  if (role === 'crm') {
-    userView.style.display = 'none';
-    crmView.classList.add('active');
-    buttons[1].classList.add('active');
-    loadCrmTable();
-  } else {
-    userView.style.display = 'block';
-    crmView.classList.remove('active');
-    buttons[0].classList.add('active');
-  }
-}
-
-function selectCourse(langId) {
-  const select = document.getElementById('lead-lang');
-  if (select) select.value = langId;
-}
-
-function switchLang(lang) {
-  document.querySelectorAll('.lang-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.innerText === lang);
-  });
-  showToast(`Локализация интерфейса: ${lang}`);
-}
-
-// ==================== РАБОТА С ФОРМОЙ И API ====================
-async function handleFormSubmit(e) {
-  if (e && e.preventDefault) e.preventDefault();
-
-  const name = document.getElementById('lead-name').value.trim();
-  const contact = document.getElementById('lead-contact').value.trim();
-  const langEl = document.getElementById('lead-lang');
-  const isChinese = langEl.value === '2' || langEl.options[langEl.selectedIndex].text.includes('Китай');
-  const dateVal = document.getElementById('lead-date').value;
-
-  const payload = {
-    fullName: name,
-    contact: contact,
-    languageId: isChinese ? 2 : 1,
-    languageCode: isChinese ? 'ZH' : 'EN',
-    preferredDate: dateVal || new Date().toISOString().split('T')[0]
-  };
-
-  try {
-    const res = await fetch('/api/requests', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-
-    if (res.ok) {
-      showToast('✓ Заявка успешно записана в базу данных PostgreSQL!');
-      document.getElementById('lead-form').reset();
-      setDefaultDate();
-    } else {
-      const err = await res.json();
-      showToast(`Ошибка сохранения: ${err.error || 'Сбой запроса'}`);
-    }
-  } catch (err) {
-    showToast('Ошибка сети при отправке в PostgreSQL');
-  }
-}
-
-// ==================== ВЫГРУЗКА И ОДОБРЕНИЕ В CRM ====================
-async function loadCrmTable() {
-  const tbody = document.getElementById('crm-table-body');
-  try {
-    const res = await fetch('/api/requests');
-    if (!res.ok) throw new Error('Сбой сети');
-    const data = await res.json();
-
-    if (!Array.isArray(data) || data.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:30px;">В базе данных пока нет заявок</td></tr>';
-      updateStats([]);
-      return;
-    }
-
-    updateStats(data);
-
-    tbody.innerHTML = data.map(row => {
-      const isConfirmed = row.ID_Status === 2 || (row.Status_Name && row.Status_Name.includes('Подтвержд'));
-      const statusHtml = isConfirmed
-        ? '<span class="status-badge status-confirmed">● Подтверждена</span>'
-        : '<span class="status-badge status-new">● Новая</span>';
-
-      const actionHtml = isConfirmed
-        ? '<span class="btn-approved-disabled">✓ Одобрено</span>'
-        : `<button class="btn-approve" onclick="quickConfirm(${row.ID_Request})">Одобрить ✓</button>`;
-
-      const formattedDate = row.Preferred_Date ? row.Preferred_Date.split('T')[0] : '—';
-
-      return `
-        <tr>
-          <td><strong>#${row.ID_Request}</strong></td>
-          <td><strong>${escapeHtml(row.Full_Name || 'Аноним')}</strong></td>
-          <td>${escapeHtml(row.Contact || '—')}</td>
-          <td>${escapeHtml(row.Language_Name || 'Английский язык')}</td>
-          <td>${formattedDate}</td>
-          <td>${statusHtml}</td>
-          <td>${escapeHtml(row.Teacher_Name || 'Анна Смирнова')}</td>
-          <td>${actionHtml}</td>
-        </tr>
-      `;
-    }).join('');
-  } catch (err) {
-    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:#ef4444; padding:30px;">Ошибка подключения к PostgreSQL</td></tr>';
-  }
-}
-
-async function quickConfirm(id) {
-  try {
-    const res = await fetch(`/api/requests/${id}/approve`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' }
-    });
-
-    if (res.ok) {
-      showToast(`Заявка #${id} подтверждена в базе данных PostgreSQL!`);
-      await loadCrmTable();
-    } else {
-      showToast('Ошибка при изменении статуса в БД');
-    }
-  } catch (err) {
-    showToast('Сбой соединения с сервером');
-  }
-}
-
-function updateStats(data) {
-  const total = data.length;
-  const confirmed = data.filter(r => r.ID_Status === 2 || (r.Status_Name && r.Status_Name.includes('Подтвержд'))).length;
-  const newReqs = total - confirmed;
-  const conv = total > 0 ? Math.round((confirmed / total) * 100) : 0;
-
-  document.getElementById('stat-total').innerText = total;
-  document.getElementById('stat-new').innerText = newReqs;
-  document.getElementById('stat-confirmed').innerText = confirmed;
-  document.getElementById('stat-conversion').innerText = `${conv}%`;
-}
-
-function showToast(msg) {
-  const toast = document.getElementById('toast');
-  toast.innerText = msg;
-  toast.classList.add('show');
-  setTimeout(() => toast.classList.remove('show'), 3500);
-}
-
-function setDefaultDate() {
-  const dateInput = document.getElementById('lead-date');
-  if (dateInput && !dateInput.value) {
-    dateInput.value = new Date().toISOString().split('T')[0];
-  }
-}
-
-function escapeHtml(str) {
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
-window.handleFormSubmit = handleFormSubmit;
-window.setRole = setRole;
-window.selectCourse = selectCourse;
-window.switchLang = switchLang;
-window.loadCrmTable = loadCrmTable;
-window.quickConfirm = quickConfirm;
-
-document.addEventListener('DOMContentLoaded', () => {
-  initTheme();
-  setDefaultDate();
+const pool = new Pool({
+  user: decodeURIComponent(dbUrl.username),
+  password: decodeURIComponent(dbUrl.password),
+  host: dbUrl.hostname,
+  port: dbUrl.port ? parseInt(dbUrl.port, 10) : 5432,
+  database: dbUrl.pathname.replace('/', ''),
+  ssl: isLocal ? false : { rejectUnauthorized: false }
 });
+
+// Инициализация структуры таблиц при первом старте
+async function initDb() {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS "Role" (
+        "ID_Role" SERIAL PRIMARY KEY,
+        "Role_Name" VARCHAR(50) NOT NULL UNIQUE
+      );
+      CREATE TABLE IF NOT EXISTS "Language" (
+        "ID_Language" SERIAL PRIMARY KEY,
+        "Language_Code" VARCHAR(5) NOT NULL UNIQUE,
+        "Language_Name" VARCHAR(100) NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS "Request_Status" (
+        "ID_Status" SERIAL PRIMARY KEY,
+        "Status_Name" VARCHAR(50) NOT NULL UNIQUE
+      );
+      CREATE TABLE IF NOT EXISTS "Lesson_Request" (
+        "ID_Request" SERIAL PRIMARY KEY,
+        "Full_Name" VARCHAR(150) NOT NULL,
+        "Contact" VARCHAR(100) NOT NULL,
+        "ID_Language" INT NOT NULL REFERENCES "Language"("ID_Language"),
+        "Preferred_Date" DATE NOT NULL,
+        "ID_Status" INT NOT NULL DEFAULT 1 REFERENCES "Request_Status"("ID_Status"),
+        "Created_At" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+      INSERT INTO "Request_Status" ("ID_Status", "Status_Name") VALUES (1, 'Новая'), (2, 'Подтверждена') ON CONFLICT DO NOTHING;
+      INSERT INTO "Language" ("ID_Language", "Language_Code", "Language_Name") VALUES (1, 'EN', 'Английский язык'), (2, 'ZH', 'Китайский язык') ON CONFLICT DO NOTHING;
+    `);
+  } catch (err) {
+    console.error('Ошибка инициализации таблиц:', err.message);
+  }
+}
+initDb();
+
+// Роут создания новой заявки
+app.post('/api/requests', async (req, res) => {
+  try {
+    const b = req.body || {};
+    const fullName = b.fullName || b.name || 'Тимофей Смирнов';
+    const contact = b.contact || b.phone || 'Не указан';
+    const rawLang = b.languageId || b.languageCode || 'EN';
+    const preferredDate = b.preferredDate || new Date().toISOString().split('T')[0];
+
+    const isZh = String(rawLang).toUpperCase().includes('ZH') || String(rawLang) === '2';
+    const targetCode = isZh ? 'ZH' : 'EN';
+    const targetName = isZh ? 'Китайский язык' : 'Английский язык';
+
+    const langRes = await pool.query(
+      `INSERT INTO "Language" ("Language_Code", "Language_Name") 
+       VALUES ($1, $2) 
+       ON CONFLICT ("Language_Code") DO UPDATE SET "Language_Name" = EXCLUDED."Language_Name" 
+       RETURNING "ID_Language";`,
+      [targetCode, targetName]
+    );
+    const langId = langRes.rows[0].ID_Language;
+
+    const query = `
+      INSERT INTO "Lesson_Request" ("Full_Name", "Contact", "ID_Language", "Preferred_Date", "ID_Status") 
+      VALUES ($1, $2, $3, $4, 1) RETURNING *;
+    `;
+    const result = await pool.query(query, [fullName, contact, langId, preferredDate]);
+    res.status(201).json({ success: true, request: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Роут выгрузки реестра заявок в CRM
+app.get('/api/requests', async (req, res) => {
+  try {
+    const query = `
+      SELECT lr."ID_Request", lr."Full_Name", lr."Contact", l."Language_Name", 
+             lr."Preferred_Date", rs."Status_Name", lr."ID_Status",
+             CASE 
+                 WHEN l."Language_Name" ILIKE '%Китай%' OR l."Language_Code" = 'ZH' THEN 'Ван Ли (王丽)'
+                 ELSE 'Анна Смирнова'
+             END as "Teacher_Name"
+      FROM "Lesson_Request" lr
+      LEFT JOIN "Language" l ON lr."ID_Language" = l."ID_Language"
+      LEFT JOIN "Request_Status" rs ON lr."ID_Status" = rs."ID_Status"
+      ORDER BY lr."ID_Request" DESC;
+    `;
+    const result = await pool.query(query);
+    res.status(200).json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Роут подтверждения заявки
+app.post('/api/requests/:id/approve', async (req, res) => {
+  try {
+    const reqId = parseInt(req.params.id, 10);
+    await pool.query(`UPDATE "Lesson_Request" SET "ID_Status" = 2 WHERE "ID_Request" = $1;`, [reqId]);
+    res.status(200).json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Локальный запуск (если не в Serverless на Vercel)
+if (process.env.VERCEL !== '1') {
+  app.listen(PORT, () => console.log(`Сервер успешно запущен на порту ${PORT}`));
+}
+
+module.exports = app;
