@@ -8,29 +8,43 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Получаем строку подключения
-let rawConn = process.env.DATABASE_POSTGRES_URL || 
-              process.env.DATABASE_URL || 
-              process.env.POSTGRES_URL || 
-              'postgresql://postgres:postgres@localhost:5432/language_school';
+// Получаем строку подключения из переменных окружения Vercel / Supabase
+const connString = process.env.DATABASE_POSTGRES_URL || 
+                   process.env.DATABASE_URL || 
+                   process.env.POSTGRES_URL || 
+                   'postgresql://postgres:postgres@localhost:5432/language_school';
 
-// Отрезаем ?sslmode=require и любые GET-параметры, мешающие настройке SSL
-const cleanConn = rawConn.split('?')[0];
+// Разбираем параметры подключения
+const dbUrl = new URL(connString.replace('postgresql://', 'http://').replace('postgres://', 'http://'));
 
-const isLocal = cleanConn.includes('localhost') || cleanConn.includes('127.0.0.1');
+const isLocal = dbUrl.hostname === 'localhost' || dbUrl.hostname === '127.0.0.1';
 
 const pool = new Pool({
-    connectionString: cleanConn,
-    ssl: isLocal ? false : { rejectUnauthorized: false }
+    user: decodeURIComponent(dbUrl.username),
+    password: decodeURIComponent(dbUrl.password),
+    host: dbUrl.hostname,
+    port: dbUrl.port ? parseInt(dbUrl.port, 10) : 5432,
+    database: dbUrl.pathname.replace('/', ''),
+    ssl: isLocal ? false : {
+        rejectUnauthorized: false
+    }
 });
 
-// Роут создания новой заявки
+// Роут создания новой заявки (принимает любые названия полей с формы)
 app.post('/api/requests', async (req, res) => {
     try {
-        const { fullName, contact, languageId, preferredDate } = req.body;
+        const body = req.body || {};
         
-        const langId = languageId ? parseInt(languageId, 10) : 1;
-        const targetDate = preferredDate || new Date().toISOString().split('T')[0];
+        // Всеядный поиск переданных полей (camelCase, snake_case, кириллица)
+        const fullName = body.fullName || body.name || body.Full_Name || body['Ваше имя'] || body['fullNameInput'];
+        const contact = body.contact || body.phone || body.Contact || body['Телефон или Telegram'] || body['contactInput'];
+        const languageId = body.languageId || body.language || body.ID_Language || 1;
+        const preferredDate = body.preferredDate || body.date || body.Preferred_Date || new Date().toISOString().split('T')[0];
+
+        const finalFullName = fullName ? String(fullName).trim() : 'Анонимный пользователь';
+        const finalContact = contact ? String(contact).trim() : 'Не указан';
+        const langId = parseInt(languageId, 10) || 1;
+        const targetDate = preferredDate;
 
         const query = `
             INSERT INTO "Lesson_Request" 
@@ -38,7 +52,7 @@ app.post('/api/requests', async (req, res) => {
             VALUES ($1, $2, $3, $4, 1) 
             RETURNING *;
         `;
-        const values = [fullName, contact, langId, targetDate];
+        const values = [finalFullName, finalContact, langId, targetDate];
         const result = await pool.query(query, values);
 
         res.status(201).json({ success: true, request: result.rows[0] });
@@ -48,7 +62,7 @@ app.post('/api/requests', async (req, res) => {
     }
 });
 
-// Роут получения списка заявок (для CRM-панели)
+// Роут получения списка заявок (для панели CRM)
 app.get('/api/requests', async (req, res) => {
     try {
         const query = `
@@ -67,10 +81,12 @@ app.get('/api/requests', async (req, res) => {
     }
 });
 
+// Запуск сервера для локальной разработки
 if (process.env.VERCEL !== '1') {
     app.listen(PORT, () => {
         console.log(`Server running on port ${PORT}`);
     });
 }
 
+// Экспорт для бессерверных функций Vercel
 module.exports = app;
