@@ -11,18 +11,14 @@
 </head>
 <body>
 
-  <!-- Статусная панель ролей -->
-  <div class="role-topbar">
-    <div class="role-switcher">
-      <span id="txt-role-label">Ролевая экосистема (ПМ.08):</span>
-      <button class="role-btn active" onclick="switchRole('guest')" id="btn-role-guest">Пользователь</button>
-      <button class="role-btn" onclick="switchRole('student')" id="btn-role-student">Ученик</button>
-      <button class="role-btn" onclick="switchRole('teacher')" id="btn-role-teacher">Преподаватель</button>
-      <button class="role-btn" onclick="switchRole('admin')" id="btn-role-admin">Администратор (CRM)</button>
-    </div>
+  <!-- Верхняя строка статуса (минималистичная) -->
+  <div class="top-status-bar">
     <div class="db-badge">
       <div class="pulse-dot"></div>
       <span id="txt-db-status">PostgreSQL 16: подключено</span>
+    </div>
+    <div id="auth-status-bar" style="display:flex; align-items:center; gap:12px;">
+      <span style="font-size:12px; color:#94A3B8;">Режим доступа: <strong id="current-role-badge" style="color:#38BDF8;">Гость (Витрина)</strong></span>
     </div>
   </div>
 
@@ -32,12 +28,14 @@
       <div class="logo-icon">LS</div>
       <div>Лингва<span>Сфера</span></div>
     </a>
-    <nav class="main-nav">
+    <nav class="main-nav" id="main-nav-links">
       <a class="active" onclick="backToMain(); scrollToSection('test-level-section')" id="nav-courses">Программы</a>
       <a onclick="backToMain(); scrollToSection('test-level-section')" id="nav-test">Тест уровня</a>
       <a onclick="backToMain(); scrollToSection('calc-section')" id="nav-calc">Калькулятор</a>
       <a onclick="backToMain(); scrollToSection('teachers-section')" id="nav-teachers">Преподаватели</a>
       <a onclick="backToMain(); scrollToSection('booking-section')" id="nav-booking">Онлайн-запись</a>
+      <!-- Вкладка CRM, видна только администратору -->
+      <a id="nav-crm-link" onclick="openAdminCrm()" style="display:none; color:#F59E0B; font-weight:700;">📊 CRM Панель</a>
     </nav>
     <div class="header-right">
       <button id="theme-btn" class="theme-toggle-btn" onclick="toggleTheme()">
@@ -49,7 +47,11 @@
         <button class="lang-item" onclick="changeLang('EN')">EN</button>
         <button class="lang-item" onclick="changeLang('ZH')">ZH</button>
       </div>
-      <button class="btn-quick-login" onclick="switchRole('admin')" id="btn-auth">Личный кабинет</button>
+
+      <!-- Кнопка входа / профиля -->
+      <div id="auth-btn-area">
+        <button class="btn-quick-login" onclick="openLoginModal()" id="btn-login-trigger">Войти в кабинет</button>
+      </div>
     </div>
   </header>
 
@@ -161,7 +163,7 @@
         </div>
       </section>
 
-      <!-- Компактные карточки преподавателей с переходом в профиль -->
+      <!-- Преподаватели -->
       <section id="teachers-section">
         <div class="block-header" style="border:none; margin-bottom:20px;">
           <div>
@@ -170,7 +172,6 @@
           </div>
         </div>
         <div class="teachers-grid">
-          <!-- Анастасия Четверикова -->
           <div class="teacher-card" onclick="openTeacherPage('anastasia')">
             <div class="teacher-avatar-row">
               <img src="anastasia.jpg" alt="Анастасия Четверикова" class="t-photo">
@@ -188,7 +189,6 @@
             <button class="btn-select-teacher" onclick="event.stopPropagation(); openTeacherPage('anastasia')">Открыть профиль преподавателя</button>
           </div>
 
-          <!-- Джеки Чан -->
           <div class="teacher-card" onclick="openTeacherPage('jackie')">
             <div class="teacher-avatar-row">
               <img src="jackie.jpg" alt="Джеки Чан" class="t-photo">
@@ -206,7 +206,6 @@
             <button class="btn-select-teacher" onclick="event.stopPropagation(); openTeacherPage('jackie')">Открыть профиль преподавателя</button>
           </div>
 
-          <!-- Марк Ковалев -->
           <div class="teacher-card" onclick="openTeacherPage('mark')">
             <div class="teacher-avatar-row">
               <img src="mark.jpg" alt="Марк Ковалёв" class="t-photo">
@@ -272,7 +271,7 @@
 
     </div>
 
-    <!-- ==================== ОТДЕЛЬНЫЙ ЭКРАН: ПРОФИЛЬ ПРЕПОДАВАТЕЛЯ ==================== -->
+    <!-- ОТДЕЛЬНЫЙ ЭКРАН: ПРОФИЛЬ ПРЕПОДАВАТЕЛЯ -->
     <div id="view-teacher-profile" class="view-pane">
       <button class="btn-back-link" onclick="backToMain()">← Назад ко всем преподавателям</button>
 
@@ -339,7 +338,7 @@
     <div id="view-student" class="view-pane">
       <div class="block-header">
         <div>
-          <div class="block-title">Личный кабинет слушателя: Алексей Смирнов</div>
+          <div class="block-title" id="student-cabinet-title">Личный кабинет слушателя: Алексей Смирнов</div>
           <div class="block-desc">Курс: Интенсивный английский язык (B2) • Договор № 2026-ENG-44</div>
         </div>
         <button class="btn-secondary" onclick="showToast('Баланс успешно пополнен на 4 урока!')">+ Пополнить баланс уроков</button>
@@ -402,7 +401,7 @@
     <div id="view-teacher" class="view-pane">
       <div class="block-header">
         <div>
-          <div class="block-title">Рабочий кабинет преподавателя: Джеки Чан (成龙)</div>
+          <div class="block-title" id="teacher-cabinet-title">Рабочий кабинет преподавателя: Джеки Чан (成龙)</div>
           <div class="block-desc">Языковое направление: Китайский язык (HSK 1-6) • Всего активных учеников: 14</div>
         </div>
         <button class="btn-brand" onclick="showToast('Ссылка на вебинарную комнату скопирована!')">Открыть свой виртуальный кабинет</button>
@@ -497,6 +496,40 @@
       </div>
     </div>
 
+  </div>
+
+  <!-- МОДАЛЬНОЕ ОКНО АВТОРИЗАЦИИ В СИСТЕМУ -->
+  <div id="login-modal" class="modal-backdrop" onclick="closeLoginModal(event)">
+    <div class="modal-card" style="max-width: 440px;" onclick="event.stopPropagation()">
+      <button class="modal-close-btn" onclick="closeLoginModal()">&times;</button>
+      <div style="text-align:center; margin-bottom:20px;">
+        <div class="logo-icon" style="margin: 0 auto 12px; width:44px; height:44px; font-size:20px;">LS</div>
+        <h2 style="font-size:22px; font-weight:800;">Вход в «ЛингваСферу»</h2>
+        <p style="font-size:13px; color:var(--text-muted); margin-top:4px;">Авторизуйтесь для доступа к личному кабинету или CRM</p>
+      </div>
+
+      <form id="login-form" onsubmit="handleLoginSubmit(event)">
+        <div style="margin-bottom:14px;">
+          <label style="display:block; font-size:12px; font-weight:700; margin-bottom:6px;">Логин или Email:</label>
+          <input type="text" id="login-username" class="input-field" placeholder="Например: admin" required>
+        </div>
+        <div style="margin-bottom:20px;">
+          <label style="display:block; font-size:12px; font-weight:700; margin-bottom:6px;">Пароль:</label>
+          <input type="password" id="login-password" class="input-field" placeholder="••••••••" required>
+        </div>
+        <button type="submit" class="btn-brand" style="width:100%; justify-content:center; padding:12px;">Войти в профиль</button>
+      </form>
+
+      <!-- Быстрый выбор для демонстрации на защите -->
+      <div class="demo-auth-box">
+        <div style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:8px;">Быстрый демо-вход для комиссии:</div>
+        <div style="display:flex; gap:6px;">
+          <button type="button" class="btn-demo-auth" onclick="fillDemoLogin('admin')">Админ</button>
+          <button type="button" class="btn-demo-auth" onclick="fillDemoLogin('student')">Ученик</button>
+          <button type="button" class="btn-demo-auth" onclick="fillDemoLogin('teacher')">Учитель</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <div id="toast" class="toast-box">
