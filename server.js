@@ -6,13 +6,11 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
-// Отдаем статику в первую очередь
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Получаем строку подключения
+// Получаем строку подключения к базе данных Supabase / PostgreSQL
 const connString = process.env.DATABASE_POSTGRES_URL || process.env.DATABASE_URL;
 
-// Ленивая инициализация пула с лимитом соединений (чтобы не душить Supabase)
 let pool = null;
 
 function getPool() {
@@ -29,7 +27,7 @@ function getPool() {
           port: dbUrl.port ? parseInt(dbUrl.port, 10) : 5432,
           database: dbUrl.pathname.replace('/', ''),
           ssl: isLocal ? false : { rejectUnauthorized: false },
-          max: 2, // Ограничиваем пул для Vercel Serverless
+          max: 2,
           connectionTimeoutMillis: 5000,
           idleTimeoutMillis: 10000
         });
@@ -166,7 +164,7 @@ app.patch('/api/requests/:id/status', async (req, res) => {
   }
 });
 
-// Отдача главной страницы для всех остальных маршрутов
+// Отдача главной страницы
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
