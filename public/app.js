@@ -3,81 +3,131 @@ var activeLang = 'RU';
 var allCrmData = [];
 var calcState = { lang: 'en', format: 'indiv', lessons: 12 };
 
-// Данные для модального окна подробного портфолио
+// База данных профилей преподавателей
 var teacherProfiles = {
   anastasia: {
     name: 'Анастасия Четверикова',
     role: 'Ведущий методист • CELTA, IELTS Academic 8.5',
-    langBadge: 'Английский язык',
+    langBadge: 'Английский язык (EN)',
     langId: 1,
     photo: 'anastasia.jpg',
+    exp: '9 лет',
+    students: '380+',
     rating: '★ 4.98 (240+ проведённых уроков)',
-    desc: 'Опыт преподавания 9 лет. Окончила лингвистический факультет с отличием, регулярно готовит слушателей к международным стажировкам и поступлению в зарубежные вузы. Автор уникальной экспресс-программы по преодолению языкового барьера за 6 недель.',
-    chips: ['General English', 'IELTS Academic', 'Разговорный интенсив', 'C1 Proficiency']
+    bio: 'Окончила лингвистический факультет с отличием. Автор сертифицированной программы скоростного погружения в языковую среду без зубрёжки. Специализируется на академическом письме, подготовке к международным экзаменам IELTS/TOEFL и снятии языкового барьера у взрослых и подростков за 6 недель.',
+    chips: ['General English', 'IELTS Academic', 'Разговорный интенсив', 'C1 Proficiency', 'Грамматический тренажёр'],
+    slots: [
+      'Понедельник, 15:00 — Свободно',
+      'Среда, 18:30 — Свободно',
+      'Пятница, 17:00 — Свободно'
+    ],
+    review: {
+      title: '«Сдала IELTS на 8.0 с первой попытки!»',
+      text: 'Анастасия объясняет сложнейшие грамматические конструкции так, что они сразу закрепляются в речи. Уроки проходят динамично и очень интересно.',
+      author: '— Ксения Л., поступила в University of London'
+    }
   },
   jackie: {
     name: 'Джеки Чан (成龙)',
     role: 'Носитель языка • Международный сертификат HSK 6',
-    langBadge: 'Китайский язык',
+    langBadge: 'Китайский язык (ZH)',
     langId: 2,
     photo: 'jackie.jpg',
+    exp: '15 лет',
+    students: '850+',
     rating: '★ 5.0 (500+ восторженных отзывов)',
-    desc: 'Легендарный преподаватель и эксперт китайской классической и бизнес-лингвистики. Учит идеальной тональной артикуляции, скорописи иероглифов, правильному этикету деловых переговоров и живому диалекту без стресса и страха ошибок.',
-    chips: ['HSK 1-6', 'Бизнес-Китайский', 'Постановка тонов', 'Каллиграфия']
+    bio: 'Легендарный педагог и мастер китайской лингвистики. Обучает тональной артикуляции, скорописи иероглифов, правилам дипломатического и бизнес-этикета в Поднебесной. Превращает освоение одного из сложнейших языков мира в увлекательное приключение без страха сделать ошибку.',
+    chips: ['HSK 1-6', 'Бизнес-Китайский', 'Постановка тонов', 'Каллиграфия', 'Разговорный диалект'],
+    slots: [
+      'Вторник, 14:00 — Свободно',
+      'Четверг, 19:00 — Свободно',
+      'Суббота, 12:00 — Свободно'
+    ],
+    review: {
+      title: '«Тоны перестали быть кошмаром за три урока!»',
+      text: 'Джеки Чан ставит правильное произношение с первого занятия. За полгода я сдал HSK 3 и начал вести переговоры с партнерами из Гуанчжоу.',
+      author: '— Михаил Р., предприниматель'
+    }
   },
   mark: {
     name: 'Марк Ковалёв',
     role: 'Синхронный переводчик • TOEFL 115, С2 Expert',
-    langBadge: 'Английский язык',
+    langBadge: 'Английский язык (EN)',
     langId: 1,
     photo: 'mark.jpg',
+    exp: '7 лет',
+    students: '290+',
     rating: '★ 4.95 (180+ успешных сдач TOEFL)',
-    desc: 'Практикующий конференц-переводчик международных IT-саммитов. Разработчик интерактивной мнемонической методики запоминания до 1000 профессиональных лексических единиц в месяц без монотонной зубрёжки.',
-    chips: ['IT English', 'TOEFL iBT', 'Деловая переписка', 'Public Speaking']
+    bio: 'Практикующий конференц-переводчик международных IT-саммитов. Разработчик ассоциативной методики запоминания до 1000 лексических единиц в месяц. Готовит IT-специалистов, разработчиков и руководителей к техническим собеседованиям в компании FAANG.',
+    chips: ['IT English', 'TOEFL iBT', 'Деловая переписка', 'Public Speaking', 'Mock Interview'],
+    slots: [
+      'Понедельник, 19:30 — Свободно',
+      'Среда, 20:00 — Свободно',
+      'Пятница, 18:00 — Свободно'
+    ],
+    review: {
+      title: '«Прошел собеседование в зарубежный стартап!»',
+      text: 'Марк прокачал мой английский под специфику разработки и продуктового менеджмента всего за два месяца. Результат — оффер на руках!',
+      author: '— Дмитрий К., Senior Frontend Developer'
+    }
   }
 };
 
-// ==================== МОДАЛЬНОЕ ОКНО ПРЕПОДАВАТЕЛЯ ====================
-function openTeacherModal(key) {
+// ==================== ПЕРЕХОД НА ОТДЕЛЬНЫЙ ПРОФИЛЬ ====================
+function openTeacherPage(key) {
   var t = teacherProfiles[key];
   if (!t) return;
 
-  var photoEl = document.getElementById('m-photo');
-  var badgeEl = document.getElementById('m-badge');
-  var nameEl = document.getElementById('m-name');
-  var roleEl = document.getElementById('m-role');
-  var ratingEl = document.getElementById('m-rating');
-  var descEl = document.getElementById('m-desc');
-  var chipsEl = document.getElementById('m-chips');
-  var bookBtn = document.getElementById('m-book-btn');
+  // Скрываем витрину и показываем экран профиля
+  document.getElementById('view-guest').style.display = 'none';
+  var profileView = document.getElementById('view-teacher-profile');
+  profileView.classList.add('active');
 
-  if (photoEl) photoEl.src = t.photo;
-  if (badgeEl) badgeEl.innerText = t.langBadge;
-  if (nameEl) nameEl.innerText = t.name;
-  if (roleEl) roleEl.innerText = t.role;
-  if (ratingEl) ratingEl.innerText = t.rating;
-  if (descEl) descEl.innerText = t.desc;
+  // Заполняем данными
+  document.getElementById('p-photo').src = t.photo;
+  document.getElementById('p-lang').innerText = t.langBadge;
+  document.getElementById('p-name').innerText = t.name;
+  document.getElementById('p-role').innerText = t.role;
+  document.getElementById('p-rating').innerText = t.rating;
+  document.getElementById('p-bio').innerText = t.bio;
+  document.getElementById('p-exp').innerText = t.exp;
+  document.getElementById('p-students').innerText = t.students;
 
-  if (chipsEl) {
-    chipsEl.innerHTML = t.chips.map(function(c) {
+  var chipsBox = document.getElementById('p-chips');
+  if (chipsBox) {
+    chipsBox.innerHTML = t.chips.map(function(c) {
       return '<span class="chip">' + c + '</span>';
     }).join('');
   }
 
+  var slotsList = document.getElementById('p-slots');
+  if (slotsList) {
+    slotsList.innerHTML = t.slots.map(function(s) {
+      return '<li>' + s + '</li>';
+    }).join('');
+  }
+
+  var revBox = document.getElementById('p-review');
+  if (revBox && t.review) {
+    revBox.innerHTML = '<strong>' + t.review.title + '</strong><p>' + t.review.text + '</p><small style="color:var(--text-muted);">' + t.review.author + '</small>';
+  }
+
+  // Кнопка записи из профиля
+  var bookBtn = document.getElementById('p-book-btn');
   if (bookBtn) {
     bookBtn.onclick = function() {
-      closeTeacherModal();
+      backToMain();
       pickTeacher(t.name, t.langId);
     };
   }
 
-  var modal = document.getElementById('teacher-modal');
-  if (modal) modal.classList.add('show');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-function closeTeacherModal(e) {
-  var modal = document.getElementById('teacher-modal');
-  if (modal) modal.classList.remove('show');
+function backToMain() {
+  document.getElementById('view-teacher-profile').classList.remove('active');
+  document.getElementById('view-guest').style.display = 'block';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 // ==================== УПРАВЛЕНИЕ ТЕМОЙ ====================
@@ -137,7 +187,7 @@ var dict = {
     calcLblFormat: 'Формат обучения:',
     calcApplyBtn: 'Зафиксировать цену в заявке',
     tSectionTitle: 'Педагогический состав школы',
-    tSectionDesc: 'Нажмите на карточку любого преподавателя, чтобы просмотреть полное портфолио',
+    tSectionDesc: 'Кликните по преподавателю, чтобы открыть его личный профиль и подробное портфолио',
     fMainTitle: 'Электронная запись на вводный урок',
     fMainDesc: 'После отправки заявка мгновенно попадает в базу данных PostgreSQL',
     fSubmitBtn: 'Отправить заявку в базу данных PostgreSQL',
@@ -173,7 +223,7 @@ var dict = {
     calcLblFormat: 'Learning Format:',
     calcApplyBtn: 'Lock Price in Application',
     tSectionTitle: 'Our Certified Faculty',
-    tSectionDesc: 'Click on any instructor card to view full professional portfolio',
+    tSectionDesc: 'Click on any instructor card to view full professional profile',
     fMainTitle: 'Online Registration for Trial Lesson',
     fMainDesc: 'Application data is stored directly in PostgreSQL database',
     fSubmitBtn: 'Submit Application to PostgreSQL Database',
@@ -209,7 +259,7 @@ var dict = {
     calcLblFormat: '授课模式：',
     calcApplyBtn: '将测算优惠写入预约单',
     tSectionTitle: '精英师资团队',
-    tSectionDesc: '点击名师卡片查看专属教学资质及详细履历',
+    tSectionDesc: '点击名师卡片查看专属独立履历与授课档案',
     fMainTitle: '免费试听课在线预约',
     fMainDesc: '提交后数据实时录入PostgreSQL核心数据库',
     fSubmitBtn: '提交申请至PostgreSQL数据库',
@@ -282,6 +332,10 @@ function changeLang(lang) {
 }
 
 function switchRole(roleKey) {
+  // Возвращаем видимость гостевого экрана если уходим из профиля
+  document.getElementById('view-teacher-profile').classList.remove('active');
+  document.getElementById('view-guest').style.display = 'block';
+
   var roleBtns = document.querySelectorAll('.role-btn');
   for (var i = 0; i < roleBtns.length; i++) {
     roleBtns[i].classList.remove('active');
@@ -671,8 +725,8 @@ function showToast(msg) {
 }
 
 // Экспорт в window
-window.openTeacherModal = openTeacherModal;
-window.closeTeacherModal = closeTeacherModal;
+window.openTeacherPage = openTeacherPage;
+window.backToMain = backToMain;
 window.toggleTheme = toggleTheme;
 window.changeLang = changeLang;
 window.switchRole = switchRole;
