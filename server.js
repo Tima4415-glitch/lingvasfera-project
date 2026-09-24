@@ -1,5 +1,3 @@
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-
 const express = require('express');
 const { Pool } = require('pg');
 const path = require('path');
@@ -10,19 +8,26 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Получаем строку подключения из переменных Vercel / Supabase
-let connectionString = process.env.DATABASE_POSTGRES_URL || 
-                       process.env.DATABASE_URL || 
-                       process.env.POSTGRES_URL || 
-                       'postgresql://postgres:postgres@localhost:5432/language_school';
+// Получаем строку подключения к Supabase
+const rawConnectionString = process.env.DATABASE_POSTGRES_URL || 
+                            process.env.DATABASE_URL || 
+                            process.env.POSTGRES_URL || 
+                            'postgresql://postgres:postgres@localhost:5432/language_school';
 
-// Очищаем параметры строки (sslmode и т.д.), чтобы они не конфликтовали с объектом ssl
-const cleanConnectionString = connectionString.split('?')[0];
+// Парсим параметры вручную, чтобы переопределить SSL для Supabase
+const poolConfig = {
+    connectionString: rawConnectionString,
+    ssl: {
+        rejectUnauthorized: false
+    }
+};
 
-const pool = new Pool({
-    connectionString: cleanConnectionString,
-    ssl: cleanConnectionString.includes('localhost') ? false : { rejectUnauthorized: false }
-});
+// Если запуск локально без SSL
+if (rawConnectionString.includes('localhost') || rawConnectionString.includes('127.0.0.1')) {
+    delete poolConfig.ssl;
+}
+
+const pool = new Pool(poolConfig);
 
 // Роут создания новой заявки
 app.post('/api/requests', async (req, res) => {
