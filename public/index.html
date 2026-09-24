@@ -40,7 +40,6 @@
       <a onclick="scrollToSection('booking-section')" id="nav-booking">Онлайн-запись</a>
     </nav>
     <div class="header-right">
-      <!-- Переключатель темы -->
       <button id="theme-btn" class="theme-toggle-btn" onclick="toggleTheme()">
         <span id="theme-icon">🌙</span> <span id="theme-text">Тёмная</span>
       </button>
@@ -54,7 +53,6 @@
     </div>
   </header>
 
-  <!-- Основной контейнер видов -->
   <div class="page-wrapper">
 
     <!-- ВИД 1: ПОЛЬЗОВАТЕЛЬ / ГОСТЬ -->
@@ -103,7 +101,7 @@
         </div>
       </div>
 
-      <!-- Тест уровня (интерактивный на 3 вопроса) -->
+      <!-- Тест уровня -->
       <section id="test-level-section" class="interactive-block">
         <div class="block-header">
           <div>
@@ -115,9 +113,7 @@
 
         <div id="quiz-container">
           <div class="quiz-question" id="quiz-question-text">Загрузка вопроса...</div>
-          <div class="quiz-options" id="quiz-options-container">
-            <!-- Варианты ответов подгружаются через app.js -->
-          </div>
+          <div class="quiz-options" id="quiz-options-container"></div>
         </div>
 
         <div id="quiz-box-result" class="quiz-result" style="display:none;">
@@ -192,22 +188,22 @@
             <button class="btn-select-teacher" onclick="pickTeacher('Анна Смирнова', 1)">Записаться к этому преподавателю</button>
           </div>
 
-          <!-- Ван Ли -->
+          <!-- Джеки Чан -->
           <div class="teacher-card">
             <div class="teacher-avatar-row">
-              <div class="t-avatar" style="background:#FEE2E2; color:#DC2626;">ВЛ</div>
+              <div class="t-avatar" style="background:#FEE2E2; color:#DC2626;">ДЧ</div>
               <div>
-                <div class="t-name">Ван Ли (王丽)</div>
+                <div class="t-name">Джеки Чан (成龙)</div>
                 <div class="t-role">Китайский • Носитель языка, HSK 6</div>
               </div>
               <div class="t-rating">★ 5.0</div>
             </div>
-            <div class="t-bio">Выпускница Пекинского университета языков. Обучает тональной фонетике, скорописи иероглифов и бизнес-этикету.</div>
+            <div class="t-bio">Мастер тональной фонетики, скорописи иероглифов и разговорной практики без языковых барьеров.</div>
             <div class="t-chips">
               <span class="chip">HSK 1-5</span>
               <span class="chip">Бизнес-Китай</span>
             </div>
-            <button class="btn-select-teacher" onclick="pickTeacher('Ван Ли (王丽)', 2)">Записаться к этому преподавателю</button>
+            <button class="btn-select-teacher" onclick="pickTeacher('Джеки Чан (成龙)', 2)">Записаться к этому преподавателю</button>
           </div>
 
           <!-- Марк Ковалев -->
@@ -230,7 +226,7 @@
         </div>
       </section>
 
-      <!-- Форма записи (PostgreSQL) с выбором преподавателя и пожеланиями -->
+      <!-- Форма записи -->
       <section id="booking-section" class="form-wrapper">
         <div class="form-title-center" id="f-main-title">Электронная запись на вводный урок</div>
         <div class="form-desc-center" id="f-main-desc">После отправки заявка мгновенно попадает в базу данных PostgreSQL</div>
@@ -263,7 +259,7 @@
             <select id="lead-teacher" class="input-field">
               <option value="Анна Смирнова">Анна Смирнова (Английский)</option>
               <option value="Марк Ковалёв">Марк Ковалёв (Английский / TOEFL)</option>
-              <option value="Ван Ли (王丽)">Ван Ли (Китайский / HSK)</option>
+              <option value="Джеки Чан (成龙)">Джеки Чан (Китайский / HSK)</option>
             </select>
           </div>
           <div class="form-control-full">
@@ -343,7 +339,7 @@
     <div id="view-teacher" class="view-pane">
       <div class="block-header">
         <div>
-          <div class="block-title">Рабочий кабинет преподавателя: Ван Ли (王丽)</div>
+          <div class="block-title">Рабочий кабинет преподавателя: Джеки Чан (成龙)</div>
           <div class="block-desc">Языковое направление: Китайский язык (HSK 1-6) • Всего активных учеников: 14</div>
         </div>
         <button class="btn-brand" onclick="showToast('Ссылка на вебинарную комнату скопирована!')">Открыть свой виртуальный кабинет</button>
@@ -440,7 +436,6 @@
 
   </div>
 
-  <!-- Всплывающий Toast -->
   <div id="toast" class="toast-box">
     <span id="toast-text">Действие выполнено</span>
   </div>
