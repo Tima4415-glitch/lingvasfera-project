@@ -3,6 +3,9 @@ var activeLang = 'RU';
 var allCrmData = [];
 var calcState = { lang: 'en', format: 'indiv', lessons: 12 };
 
+// Текущий авторизованный пользователь (сессия в памяти)
+var currentUser = null;
+
 // База данных профилей преподавателей
 var teacherProfiles = {
   anastasia: {
@@ -73,33 +76,150 @@ var teacherProfiles = {
   }
 };
 
-// ==================== ПЕРЕКЛЮЧЕНИЕ РОЛЕЙ (ПОЛЬЗОВАТЕЛЬ / УЧЕНИК / ПРЕПОДАВАТЕЛЬ / CRM) ====================
+// ==================== СИСТЕМА АВТОРИЗАЦИИ И ДОСТУПА ====================
+function openLoginModal() {
+  var modal = document.getElementById('login-modal');
+  if (modal) modal.classList.add('show');
+}
+
+function closeLoginModal(e) {
+  var modal = document.getElementById('login-modal');
+  if (modal) modal.classList.remove('show');
+}
+
+function fillDemoLogin(role) {
+  var u = document.getElementById('login-username');
+  var p = document.getElementById('login-password');
+  if (role === 'admin') {
+    if (u) u.value = 'admin';
+    if (p) p.value = 'admin123';
+  } else if (role === 'student') {
+    if (u) u.value = 'student';
+    if (p) p.value = 'student123';
+  } else if (role === 'teacher') {
+    if (u) u.value = 'teacher';
+    if (p) p.value = 'teacher123';
+  }
+}
+
+async function handleLoginSubmit(e) {
+  e.preventDefault();
+  var u = document.getElementById('login-username').value.trim();
+  var p = document.getElementById('login-password').value.trim();
+
+  try {
+    var res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: u, password: p })
+    });
+    var data = await res.json();
+
+    if (res.ok && data.success) {
+      currentUser = data.user;
+      closeLoginModal();
+      applyUserSession();
+      showToast(`✓ Успешный вход: ${currentUser.name} (${currentUser.roleName})`);
+    } else {
+      showToast('Ошибка входа: ' + (data.error || 'Неверный логин или пароль'));
+    }
+  } catch (err) {
+    // Демо-fallback для оффлайн работы
+    if (u === 'admin' && p === 'admin123') {
+      currentUser = { id: 1, name: 'Администратор системы', role: 'admin', roleName: 'Администратор' };
+    } else if (u === 'student' && p === 'student123') {
+      currentUser = { id: 2, name: 'Алексей Смирнов', role: 'student', roleName: 'Ученик' };
+    } else if (u === 'teacher' && p === 'teacher123') {
+      currentUser = { id: 3, name: 'Джеки Чан (成龙)', role: 'teacher', roleName: 'Преподаватель' };
+    } else {
+      showToast('Неверный логин или пароль');
+      return;
+    }
+    closeLoginModal();
+    applyUserSession();
+    showToast(`✓ Вход выполнен: ${currentUser.name}`);
+  }
+}
+
+function applyUserSession() {
+  var area = document.getElementById('auth-btn-area');
+  var roleBadge = document.getElementById('current-role-badge');
+  var crmNav = document.getElementById('nav-crm-link');
+
+  if (currentUser) {
+    // Обновляем бейдж роли сверху
+    if (roleBadge) roleBadge.innerText = `${currentUser.name} (${currentUser.roleName})`;
+
+    // Кнопка в шапке
+    if (area) {
+      area.innerHTML = `
+        <div class="user-logged-badge">
+          <span>👤 ${currentUser.name}</span>
+          <button class="btn-logout" onclick="logoutUser()">Выйти</button>
+        </div>
+      `;
+    }
+
+    // Показываем ссылку CRM только администратору
+    if (crmNav) {
+      crmNav.style.display = (currentUser.role === 'admin') ? 'inline-block' : 'none';
+    }
+
+    // Переключаем экран в соответствии с ролью
+    if (currentUser.role === 'admin') {
+      switchRole('admin');
+    } else if (currentUser.role === 'student') {
+      switchRole('student');
+    } else if (currentUser.role === 'teacher') {
+      switchRole('teacher');
+    }
+  } else {
+    // Режим гостя
+    if (roleBadge) roleBadge.innerText = 'Гость (Витрина)';
+    if (area) {
+      area.innerHTML = `<button class="btn-quick-login" onclick="openLoginModal()" id="btn-login-trigger">Войти в кабинет</button>`;
+    }
+    if (crmNav) crmNav.style.display = 'none';
+    switchRole('guest');
+  }
+}
+
+function logoutUser() {
+  currentUser = null;
+  applyUserSession();
+  showToast('Вы вышли из учетной записи');
+}
+
+function openAdminCrm() {
+  if (currentUser && currentUser.role === 'admin') {
+    switchRole('admin');
+  } else {
+    showToast('Доступ в CRM разрешён только администратору');
+    openLoginModal();
+  }
+}
+
+// ==================== ПЕРЕКЛЮЧЕНИЕ РОЛЕВЫХ ВИДОВ ====================
 function switchRole(roleKey) {
-  // 1. Скрываем все возможные экраны через класс active
   var panes = document.querySelectorAll('.view-pane');
   for (var j = 0; j < panes.length; j++) {
     panes[j].classList.remove('active');
-    panes[j].style.removeProperty('display'); // Сбрасываем инлайн display
+    panes[j].style.removeProperty('display');
   }
 
-  // 2. Снимаем подсветку со всех кнопок ролей
   var roleBtns = document.querySelectorAll('.role-btn');
   for (var i = 0; i < roleBtns.length; i++) {
     roleBtns[i].classList.remove('active');
   }
 
-  // 3. Активируем нужную кнопку
   var activeBtn = document.getElementById('btn-role-' + roleKey);
   if (activeBtn) activeBtn.classList.add('active');
 
-  // 4. Показываем нужный экран
-  var targetId = 'view-' + roleKey;
-  var activePane = document.getElementById(targetId);
+  var activePane = document.getElementById('view-' + roleKey);
   if (activePane) {
     activePane.classList.add('active');
   }
 
-  // 5. Если выбран администратор — сразу подгружаем свежие данные из PostgreSQL
   if (roleKey === 'admin') {
     loadCrmTable();
   }
@@ -107,23 +227,20 @@ function switchRole(roleKey) {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-// ==================== ПЕРЕХОД НА ОТДЕЛЬНЫЙ ПРОФИЛЬ ====================
+// ==================== ПЕРЕХОД НА ПРОФИЛЬ ПРЕПОДАВАТЕЛЯ ====================
 function openTeacherPage(key) {
   var t = teacherProfiles[key];
   if (!t) return;
 
-  // Скрываем все экраны
   var panes = document.querySelectorAll('.view-pane');
   for (var j = 0; j < panes.length; j++) {
     panes[j].classList.remove('active');
     panes[j].style.removeProperty('display');
   }
 
-  // Показываем профиль
   var profileView = document.getElementById('view-teacher-profile');
   if (profileView) profileView.classList.add('active');
 
-  // Заполняем данными
   document.getElementById('p-photo').src = t.photo;
   document.getElementById('p-lang').innerText = t.langBadge;
   document.getElementById('p-name').innerText = t.name;
@@ -195,18 +312,6 @@ function updateThemeUi(isDark) {
 // ==================== МУЛЬТИЯЗЫЧНЫЙ СЛОВАРЬ ====================
 var dict = {
   RU: {
-    roleLabel: 'Ролевая экосистема (ПМ.08):',
-    roleGuest: 'Пользователь',
-    roleStudent: 'Ученик',
-    roleTeacher: 'Преподаватель',
-    roleAdmin: 'Администратор (CRM)',
-    dbStatus: 'PostgreSQL 16: подключено',
-    navCourses: 'Программы',
-    navTest: 'Тест уровня',
-    navCalc: 'Калькулятор',
-    navTeachers: 'Преподаватели',
-    navBooking: 'Онлайн-запись',
-    btnAuth: 'Личный кабинет',
     heroBadge: '★ Аккредитованный центр HSK & IELTS 2026',
     heroTitle: 'Изучайте <span>английский и китайский</span><br>с персональным графиком',
     heroDesc: 'Преодолейте языковой барьер с сертифицированными преподавателями и носителями языка. Подготовка к академическому переезду, работе и экзаменам.',
@@ -231,18 +336,6 @@ var dict = {
     toastSaved: '✓ Заявка успешно записана в базу данных PostgreSQL!'
   },
   EN: {
-    roleLabel: 'Role Ecosystem (PM.08):',
-    roleGuest: 'User (Guest)',
-    roleStudent: 'Student',
-    roleTeacher: 'Teacher',
-    roleAdmin: 'Admin CRM',
-    dbStatus: 'PostgreSQL 16: Connected',
-    navCourses: 'Programs',
-    navTest: 'Placement Test',
-    navCalc: 'Calculator',
-    navTeachers: 'Tutors',
-    navBooking: 'Book Class',
-    btnAuth: 'Portal Login',
     heroBadge: '★ Accredited HSK & IELTS Center 2026',
     heroTitle: 'Master <span>English & Chinese</span><br>with Flexible Online Tutoring',
     heroDesc: 'Overcome language barriers with verified native speakers and expert tutors. Tailored for study abroad, career growth and exams.',
@@ -267,18 +360,6 @@ var dict = {
     toastSaved: '✓ Application successfully stored in PostgreSQL database!'
   },
   ZH: {
-    roleLabel: '角色生态系统 (PM.08):',
-    roleGuest: '普通访客',
-    roleStudent: '学员个人中心',
-    roleTeacher: '教师授课中心',
-    roleAdmin: '管理后台 (CRM)',
-    dbStatus: 'PostgreSQL 16 数据库：已连接',
-    navCourses: '课程体系',
-    navTest: '水平自测',
-    navCalc: '费用测算',
-    navTeachers: '师资团队',
-    navBooking: '预约试听',
-    btnAuth: '登录中心',
     heroBadge: '★ 2026官方认证HSK与雅思教学中心',
     heroTitle: '在线一对一及小班<br><span>专业英语与中文课程</span>',
     heroDesc: '名校名师与母语外教小班授课，全面消除语言交流障碍，助力考级、升学与海外商务。',
@@ -326,20 +407,6 @@ function changeLang(lang) {
   var t = dict[lang];
   if (!t) return;
 
-  safeSet('txt-role-label', t.roleLabel, false);
-  safeSet('btn-role-guest', t.roleGuest, false);
-  safeSet('btn-role-student', t.roleStudent, false);
-  safeSet('btn-role-teacher', t.roleTeacher, false);
-  safeSet('btn-role-admin', t.roleAdmin, false);
-  safeSet('txt-db-status', t.dbStatus, false);
-
-  safeSet('nav-courses', t.navCourses, false);
-  safeSet('nav-test', t.navTest, false);
-  safeSet('nav-calc', t.navCalc, false);
-  safeSet('nav-teachers', t.navTeachers, false);
-  safeSet('nav-booking', t.navBooking, false);
-  safeSet('btn-auth', t.btnAuth, false);
-
   safeSet('hero-badge', t.heroBadge, false);
   safeSet('hero-title', t.heroTitle, true);
   safeSet('hero-desc', t.heroDesc, false);
@@ -369,7 +436,7 @@ function changeLang(lang) {
 }
 
 function scrollToSection(id) {
-  switchRole('guest');
+  backToMain();
   var el = document.getElementById(id);
   if (el) el.scrollIntoView({ behavior: 'smooth' });
 }
@@ -510,7 +577,6 @@ function applyCalcToForm() {
   showToast('Параметры курса зафиксированы!');
 }
 
-// Выбор преподавателя БЕЗ загрязнения поля заметок
 function pickTeacher(name, langId) {
   scrollToSection('booking-section');
   var langSel = document.getElementById('lead-lang');
@@ -735,6 +801,12 @@ function showToast(msg) {
 }
 
 // Экспорт в window
+window.openLoginModal = openLoginModal;
+window.closeLoginModal = closeLoginModal;
+window.fillDemoLogin = fillDemoLogin;
+window.handleLoginSubmit = handleLoginSubmit;
+window.logoutUser = logoutUser;
+window.openAdminCrm = openAdminCrm;
 window.openTeacherPage = openTeacherPage;
 window.backToMain = backToMain;
 window.toggleTheme = toggleTheme;
