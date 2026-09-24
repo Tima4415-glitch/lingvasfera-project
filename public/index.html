@@ -8,123 +8,232 @@
 </head>
 <body>
 
-  <!-- Верхняя панель навигации -->
+  <!-- Навигация -->
   <header>
     <div class="nav-container">
       <div class="brand">
         <span class="brand-badge">LS</span>
-        <span>ЛингваСфера</span>
+        <span id="txt-brand-name">ЛингваСфера</span>
       </div>
 
       <nav class="nav-links">
-        <a href="#courses">Курсы</a>
-        <a href="#teachers">Преподаватели</a>
-        <a href="#booking">Запись</a>
+        <a href="#courses" id="nav-courses">Курсы</a>
+        <a href="#calc" id="nav-calc">Калькулятор</a>
+        <a href="#test" id="nav-test">Тест уровня</a>
+        <a href="#booking" id="nav-booking">Запись</a>
       </nav>
 
       <div class="nav-actions">
-        <!-- Кнопка смены темы -->
+        <!-- Кнопка темы -->
         <button id="btn-theme-toggle" class="theme-toggle-btn" onclick="toggleTheme()">
           <span id="theme-icon">🌙</span> <span id="theme-text">Тёмная</span>
         </button>
 
-        <!-- Переключатели языков -->
-        <button class="lang-btn active" onclick="switchLang('RU')">RU</button>
-        <button class="lang-btn" onclick="switchLang('EN')">EN</button>
-        <button class="lang-btn" onclick="switchLang('ZH')">ZH</button>
+        <!-- Языки интерфейса -->
+        <button class="lang-btn active" id="btn-lang-ru" onclick="switchLang('RU')">RU</button>
+        <button class="lang-btn" id="btn-lang-en" onclick="switchLang('EN')">EN</button>
+        <button class="lang-btn" id="btn-lang-zh" onclick="switchLang('ZH')">ZH</button>
       </div>
     </div>
   </header>
 
   <main>
-    <!-- Панель демонстрации ролей -->
+    <!-- Ролевая плашка: Гость / Ученик / CRM-Админ -->
     <div class="role-bar">
-      <div class="role-bar-title">Режим просмотра системы:</div>
+      <div class="role-bar-title" id="txt-role-title">Демонстрация ролей интерфейса:</div>
       <div class="role-buttons">
-        <button class="btn-role active" onclick="setRole('user')">Пользователь</button>
-        <button class="btn-role" onclick="setRole('crm')">Администратор (CRM)</button>
+        <button class="btn-role active" id="btn-role-guest" onclick="setRole('guest')">Пользователь (Гость)</button>
+        <button class="btn-role" id="btn-role-student" onclick="setRole('student')">Личный кабинет (Ученик)</button>
+        <button class="btn-role" id="btn-role-crm" onclick="setRole('crm')">Администратор (CRM)</button>
       </div>
     </div>
 
-    <!-- ВИТРИНА ПОЛЬЗОВАТЕЛЯ -->
-    <div id="view-user">
+    <!-- ==================== ЭКРАН 1: ГОСТЬ (ВИТРИНА) ==================== -->
+    <div id="view-guest">
+      <!-- Hero -->
       <section class="hero">
-        <span class="hero-pill">Академический центр 2026</span>
-        <h1>Изучайте английский и китайский языки онлайн</h1>
-        <p>Индивидуальные графики, сертифицированные педагоги, подготовка к международным экзаменам HSK и IELTS.</p>
+        <span class="hero-pill" id="txt-hero-pill">• 2 профильных языка (EN / ZH)</span>
+        <h1 id="txt-hero-title">Изучайте английский и китайский языки онлайн и в группах</h1>
+        <p id="txt-hero-desc">Эффективные методики подготовки к международным экзаменам HSK и IELTS. Индивидуальный график с квалифицированными преподавателями.</p>
         <div class="hero-actions">
-          <a href="#booking" class="btn-primary">Записаться на пробный урок</a>
-          <a href="#courses" class="btn-secondary">Выбрать курс</a>
+          <a href="#booking" class="btn-primary" id="btn-hero-book">Записаться на пробный урок</a>
+          <a href="#courses" class="btn-secondary" id="btn-hero-courses">Выбрать курс</a>
         </div>
       </section>
 
       <!-- Направления обучения -->
-      <section id="courses">
-        <h2 class="section-title">Направления обучения</h2>
+      <section id="courses" style="margin-bottom: 40px;">
+        <h2 class="section-title" id="txt-courses-title">Направления обучения</h2>
         <div class="cards-grid">
+          <!-- Карточка EN -->
           <div class="card">
             <span class="card-tag tag-en">EN • Английский язык</span>
-            <h3>Английский для карьеры и учебы</h3>
-            <p>Преподаватели уровня C2, постановка живой разговорной речи, подготовка к IELTS и TOEFL.</p>
+            <h3 id="txt-card-en-title">Английский для карьеры и жизни</h3>
+            <p id="txt-card-en-desc">Курсы для уровней от Beginner (A1) до Advanced (C1). Подготовка к IELTS, TOEFL, корпоративный и разговорный формат.</p>
             <div class="card-badges">
+              <span class="badge">General English</span>
+              <span class="badge">Подготовка к IELTS</span>
               <span class="badge">A1–C1</span>
-              <span class="badge">IELTS</span>
-              <span class="badge">General</span>
             </div>
-            <a href="#booking" class="btn-primary" style="display:inline-block; text-align:center; width:100%;" onclick="selectCourse(1)">Выбрать английский</a>
+            <button class="btn-primary" style="width: 100%;" onclick="selectCourse(1)">Выбрать английский</button>
           </div>
 
+          <!-- Карточка ZH -->
           <div class="card">
             <span class="card-tag tag-zh">ZH • Китайский язык</span>
-            <h3>Китайский с носителем языка</h3>
-            <p>Изучение иероглифики, тонов и живой разговорной речи. Подготовка к сдаче HSK 1–5.</p>
+            <h3 id="txt-card-zh-title">Китайский с носителем языка</h3>
+            <p id="txt-card-zh-desc">Изучение иероглифики, тонов и живой разговорной речи. Подготовка к сертифицированному экзамену HSK (уровни 1–5).</p>
             <div class="card-badges">
               <span class="badge">HSK 1-5</span>
-              <span class="badge">Тонирование</span>
-              <span class="badge">Бизнес</span>
+              <span class="badge">Бизнес-китайский</span>
+              <span class="badge">Постановка тонов</span>
             </div>
-            <a href="#booking" class="btn-primary" style="display:inline-block; text-align:center; width:100%;" onclick="selectCourse(2)">Выбрать китайский</a>
+            <button class="btn-primary" style="width: 100%;" onclick="selectCourse(2)">Выбрать китайский</button>
           </div>
         </div>
       </section>
 
-      <!-- Форма записи -->
+      <!-- Интерактивный калькулятор стоимости занятий со скидками -->
+      <section id="calc" class="booking-container" style="margin-bottom: 40px;">
+        <div class="booking-header">
+          <h2 id="txt-calc-title">Калькулятор стоимости обучения</h2>
+          <p id="txt-calc-sub">Выберите язык, формат и пакет занятий со скидкой</p>
+        </div>
+
+        <div class="form-group">
+          <label>Изучаемый язык:</label>
+          <select id="calc-lang" class="form-control" onchange="calculatePrice()">
+            <option value="en">Английский язык (от 1 200 ₽/урок)</option>
+            <option value="zh">Китайский язык (от 1 500 ₽/урок)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Формат обучения:</label>
+          <select id="calc-format" class="form-control" onchange="calculatePrice()">
+            <option value="individual">Индивидуально с преподавателем</option>
+            <option value="group">В мини-группе (скидка 30%)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Количество занятий в пакете: <strong id="calc-lessons-count">8</strong> уроков</label>
+          <input type="range" id="calc-range" class="form-control" min="4" max="32" step="4" value="8" oninput="calculatePrice()">
+          <small style="color: #64748b; display: block; margin-top: 4px;">Пакеты: 4, 8 (скидка 5%), 16 (скидка 10%), 24 (скидка 15%), 32 (скидка 20%)</small>
+        </div>
+
+        <div style="background: rgba(37,99,235,0.08); padding: 18px; border-radius: 12px; margin-top: 20px; display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <div style="font-size: 0.9rem; color: #64748b;">Итоговая стоимость пакета:</div>
+            <div id="calc-total-price" style="font-size: 1.8rem; font-weight: 800; color: #2563eb;">9 120 ₽</div>
+          </div>
+          <div style="text-align: right;">
+            <div id="calc-discount-badge" class="badge" style="background: #dcfce7; color: #15803d; font-weight: 700;">Скидка 5%</div>
+            <div id="calc-per-lesson" style="font-size: 0.85rem; color: #64748b; margin-top: 4px;">1 140 ₽ / урок</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Интерактивный тест на уровень владения языком -->
+      <section id="test" class="booking-container" style="margin-bottom: 40px;">
+        <div class="booking-header">
+          <h2 id="txt-quiz-title">Экспресс-тест на уровень языка</h2>
+          <p id="txt-quiz-sub">Ответьте на вопрос для определения подходящей группы</p>
+        </div>
+
+        <div id="quiz-box">
+          <div class="form-group">
+            <label id="quiz-question" style="font-size: 1.05rem; margin-bottom: 12px;">Выберите верный вариант: "She ________ to the language school every Monday."</label>
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+              <label style="display: flex; align-items: center; gap: 8px; font-weight: normal; cursor: pointer;">
+                <input type="radio" name="quiz-opt" value="go"> a) go
+              </label>
+              <label style="display: flex; align-items: center; gap: 8px; font-weight: normal; cursor: pointer;">
+                <input type="radio" name="quiz-opt" value="goes"> b) goes
+              </label>
+              <label style="display: flex; align-items: center; gap: 8px; font-weight: normal; cursor: pointer;">
+                <input type="radio" name="quiz-opt" value="gone"> c) gone
+              </label>
+            </div>
+          </div>
+          <button type="button" class="btn-primary" style="margin-top: 10px;" onclick="checkQuiz()">Проверить ответ</button>
+          <div id="quiz-result" style="margin-top: 14px; font-weight: 600; display: none;"></div>
+        </div>
+      </section>
+
+      <!-- Форма онлайн-записи -->
       <section id="booking" class="booking-container">
         <div class="booking-header">
-          <h2>Электронная запись на вводный урок</h2>
-          <p>После отправки заявка сохраняется в базе данных PostgreSQL</p>
+          <h2 id="txt-booking-title">Запись на вводное занятие</h2>
+          <p id="txt-booking-sub">Заполните поля, и мы подберем программу под ваш уровень</p>
         </div>
 
         <form id="lead-form" onsubmit="handleFormSubmit(event)">
           <div class="form-group">
-            <label for="lead-name">Ваше имя *</label>
-            <input type="text" id="lead-name" class="form-control" placeholder="Например: Тимофей Смирнов" required>
+            <label for="lead-name" id="lbl-name">Ваше имя *</label>
+            <input type="text" id="lead-name" class="form-control" placeholder="Например: Алексей Смирнов" required>
           </div>
 
           <div class="form-group">
-            <label for="lead-contact">Телефон или Telegram *</label>
-            <input type="text" id="lead-contact" class="form-control" placeholder="+7 (915) 000-00-00" required>
+            <label for="lead-contact" id="lbl-contact">Телефон или Email *</label>
+            <input type="text" id="lead-contact" class="form-control" placeholder="+7 (999) 111-22-33" required>
           </div>
 
           <div class="form-group">
-            <label for="lead-lang">Изучаемый язык *</label>
+            <label for="lead-lang" id="lbl-lang">Изучаемый язык *</label>
             <select id="lead-lang" class="form-control" required>
-              <option value="1">Английский язык (EN)</option>
-              <option value="2">Китайский язык (ZH)</option>
+              <option value="1">Английский язык</option>
+              <option value="2">Китайский язык</option>
             </select>
           </div>
 
           <div class="form-group">
-            <label for="lead-date">Желаемая дата занятия *</label>
+            <label for="lead-date" id="lbl-date">Желаемая дата занятия *</label>
             <input type="date" id="lead-date" class="form-control" required>
           </div>
 
-          <button type="submit" class="btn-submit">Отправить заявку в базу данных PostgreSQL</button>
+          <button type="submit" class="btn-submit" id="btn-submit-form">Отправить заявку в базу данных PostgreSQL</button>
         </form>
       </section>
     </div>
 
-    <!-- CRM-ПАНЕЛЬ АДМИНИСТРАТОРА -->
+    <!-- ==================== ЭКРАН 2: ЛИЧНЫЙ КАБИНЕТ УЧЕНИКА ==================== -->
+    <div id="view-student" style="display: none;">
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; margin-bottom: 30px;">
+        <div class="card">
+          <h3 style="margin-bottom: 12px;">Моё обучение</h3>
+          <div style="background: rgba(37,99,235,0.08); border-radius: 12px; padding: 18px; margin-bottom: 16px;">
+            <div style="font-weight: 700; color: #2563eb; margin-bottom: 6px;">КУРС: АНГЛИЙСКИЙ ЯЗЫК (B2)</div>
+            <div style="font-size: 1.1rem; font-weight: 700;">Ближайший онлайн-урок: Завтра в 18:30</div>
+            <div style="color: #64748b; font-size: 0.9rem; margin-top: 4px;">Преподаватель: Смирнова А. В. • Тема: Complex Object</div>
+            <button class="btn-primary" style="margin-top: 14px; padding: 8px 16px; font-size: 0.9rem;">Войти на урок</button>
+          </div>
+          <div>
+            <div style="display: flex; justify-content: space-between; font-weight: 600; font-size: 0.9rem; margin-bottom: 6px;">
+              <span>Пройдено 16 из 24 занятий</span>
+              <span style="color: #2563eb;">66%</span>
+            </div>
+            <div style="width: 100%; height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden;">
+              <div style="width: 66%; height: 100%; background: #2563eb;"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3 style="margin-bottom: 12px;">Учебные материалы и задания</h3>
+          <div style="border-left: 3px solid #10b981; padding-left: 12px; margin-bottom: 12px;">
+            <div style="font-weight: 600;">Домашнее задание к Unit 8</div>
+            <div style="color: #64748b; font-size: 0.85rem;">Выполнить упражнения 4–6 на платформе Grammar Online</div>
+          </div>
+          <div style="border-left: 3px solid #3b82f6; padding-left: 12px;">
+            <div style="font-weight: 600;">Словарный модуль HSK / Vocabulary</div>
+            <div style="color: #64748b; font-size: 0.85rem;">30 новых академических коллокаций для эссе</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== ЭКРАН 3: CRM АДМИНИСТРАТОРА ==================== -->
     <div id="view-crm" class="crm-section">
       <div class="crm-header-card">
         <div>
