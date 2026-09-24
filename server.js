@@ -53,22 +53,23 @@ function getPool() {
   return pool;
 }
 
-// Гарантируем наличие необходимых колонок и базовых статусов
-async function ensureDbStructure() {
+// Проверка существующих колонок таблицы Lesson_Request
+async function getTableColumns(db) {
   try {
-    const db = getPool();
+    // Пытаемся безопасно добавить колонки, если есть права
     await db.query(`ALTER TABLE "Lesson_Request" ADD COLUMN IF NOT EXISTS "Notes" TEXT;`);
     await db.query(`ALTER TABLE "Lesson_Request" ADD COLUMN IF NOT EXISTS "Teacher_Name" VARCHAR(100);`);
-    await db.query(`
-      INSERT INTO "Request_Status" ("ID_Status", "Status_Name") 
-      VALUES (1, 'Новая'), (2, 'Подтверждена') 
-      ON CONFLICT ("ID_Status") DO NOTHING;
-    `);
-  } catch (err) {
-    // Игнорируем возможные ошибки схемы
+  } catch (e) {
+    // Игнорируем ошибку, если нет прав ALTER TABLE
   }
+
+  const res = await db.query(`
+    SELECT column_name 
+    FROM information_schema.columns 
+    WHERE LOWER(table_name) = 'lesson_request';
+  `);
+  return res.rows.map(r => r.column_name.toLowerCase());
 }
-ensureDbStructure();
 
 // 1. Получение списка языков
 app.get('/api/languages', async (req, res) => {
@@ -82,7 +83,7 @@ app.get('/api/languages', async (req, res) => {
   }
 });
 
-// 2. Создание заявки
+// 2. Создание заявки (с защитой от несуществующих колонок)
 app.post('/api/requests', async (req, res) => {
   const { full_name, contact, language_id, preferred_date, notes, teacher_name } = req.body;
   if (!full_name || !contact || !language_id || !preferred_date) {
@@ -95,6 +96,7 @@ app.post('/api/requests', async (req, res) => {
     const targetCode = isZh ? 'ZH' : 'EN';
     const targetName = isZh ? 'Китайский язык' : 'Английский язык';
 
+    // Гарантируем наличие языка
     let langRes = await db.query(
       `SELECT "ID_Language" FROM "Language" WHERE "Language_Code" = $1 OR "Language_Name" ILIKE $2 LIMIT 1;`,
       [targetCode, `%${targetName.split(' ')[0]}%`]
@@ -111,24 +113,53 @@ app.post('/api/requests', async (req, res) => {
       actualLangId = insertLang.rows[0].ID_Language;
     }
 
+    // Гарантируем наличие статусов
     await db.query(`
       INSERT INTO "Request_Status" ("ID_Status", "Status_Name") 
       VALUES (1, 'Новая') 
       ON CONFLICT ("ID_Status") DO NOTHING;
     `);
 
-    // Если преподаватель не выбран вручную, распределяем по языку
+    // Определяем преподавателя
     let finalTeacher = teacher_name;
     if (!finalTeacher) {
       finalTeacher = isZh ? 'Джеки Чан (成龙)' : 'Анна Смирнова';
     }
 
+    // Проверяем доступные колонки в БД
+    const cols = await getTableColumns(db);
+    const hasNotes = cols.includes('notes');
+    const hasTeacher = cols.includes('teacher_name');
+
+    let insertCols = ['"Full_Name"', '"Contact"', '"ID_Language"', '"Preferred_Date"', '"ID_Status"'];
+    let valPlaceholders = ['$1', '$2', '$3', '$4', '1'];
+    let values = [full_name, contact, actualLangId, preferred_date];
+
+    let paramIdx = 5;
+
+    if (hasNotes) {
+      insertCols.push('"Notes"');
+      valPlaceholders.push(`$${paramIdx}`);
+      values.push(notes || null);
+      paramIdx++;
+    }
+
+    if (hasTeacher) {
+      insertCols.push('"Teacher_Name"');
+      valPlaceholders.push(`$${paramIdx}`);
+      values.push(finalTeacher);
+      paramIdx++;
+    } else if (!hasTeacher && hasNotes && finalTeacher) {
+      // Если колонки Teacher_Name нет, но есть Notes — сохраняем метку преподавателя в Notes
+      const notesWithTeacher = notes ? `[Преподаватель: ${finalTeacher}] ${notes}` : `[Преподаватель: ${finalTeacher}]`;
+      values[values.length - 1] = notesWithTeacher;
+    }
+
     const query = `
-      INSERT INTO "Lesson_Request" 
-        ("Full_Name", "Contact", "ID_Language", "Preferred_Date", "ID_Status", "Notes", "Teacher_Name") 
-      VALUES ($1, $2, $3, $4, 1, $5, $6) RETURNING *;
+      INSERT INTO "Lesson_Request" (${insertCols.join(', ')}) 
+      VALUES (${valPlaceholders.join(', ')}) 
+      RETURNING *;
     `;
-    const values = [full_name, contact, actualLangId, preferred_date, notes || null, finalTeacher];
     const result = await db.query(query, values);
 
     res.status(201).json({ success: true, request: result.rows[0] });
@@ -138,33 +169,72 @@ app.post('/api/requests', async (req, res) => {
   }
 });
 
-// 3. Выгрузка заявок для CRM с гарантированным сохранением статусов
+// 3. Выгрузка заявок для CRM (динамический запрос без риска падения)
 app.get('/api/requests', async (req, res) => {
   try {
     const db = getPool();
+    const cols = await getTableColumns(db);
+    const hasNotes = cols.includes('notes');
+    const hasTeacher = cols.includes('teacher_name');
+
+    const notesSelect = hasNotes ? `r."Notes"` : `NULL AS "Notes"`;
+    
+    // Формируем выбор преподавателя в зависимости от доступных колонок
+    let teacherSelect = `
+      CASE 
+        WHEN l."Language_Code" = 'ZH' OR l."Language_Name" ILIKE '%Китай%' THEN 'Джеки Чан (成龙)'
+        ELSE 'Анна Смирнова'
+      END
+    `;
+
+    if (hasTeacher && hasNotes) {
+      teacherSelect = `
+        COALESCE(
+          r."Teacher_Name",
+          CASE 
+            WHEN r."Notes" ILIKE '%Марк%' THEN 'Марк Ковалёв'
+            WHEN r."Notes" ILIKE '%Джеки%' THEN 'Джеки Чан (成龙)'
+            WHEN l."Language_Code" = 'ZH' OR l."Language_Name" ILIKE '%Китай%' THEN 'Джеки Чан (成龙)'
+            ELSE 'Анна Смирнова'
+          END
+        )
+      `;
+    } else if (hasTeacher) {
+      teacherSelect = `
+        COALESCE(
+          r."Teacher_Name",
+          CASE 
+            WHEN l."Language_Code" = 'ZH' OR l."Language_Name" ILIKE '%Китай%' THEN 'Джеки Чан (成龙)'
+            ELSE 'Анна Смирнова'
+          END
+        )
+      `;
+    } else if (hasNotes) {
+      teacherSelect = `
+        CASE 
+          WHEN r."Notes" ILIKE '%Марк%' THEN 'Марк Ковалёв'
+          WHEN r."Notes" ILIKE '%Джеки%' THEN 'Джеки Чан (成龙)'
+          WHEN l."Language_Code" = 'ZH' OR l."Language_Name" ILIKE '%Китай%' THEN 'Джеки Чан (成龙)'
+          ELSE 'Анна Смирнова'
+        END
+      `;
+    }
+
     const query = `
       SELECT 
         r."ID_Request", 
         r."Full_Name", 
         r."Contact", 
-        r."Notes",
+        ${notesSelect},
         r."ID_Status",
         l."Language_Name", 
         l."Language_Code",
         TO_CHAR(r."Preferred_Date", 'YYYY-MM-DD') AS "Preferred_Date", 
         COALESCE(rs."Status_Name", CASE WHEN r."ID_Status" = 2 THEN 'Подтверждена' ELSE 'Новая' END) AS "Status_Name",
-        COALESCE(
-          r."Teacher_Name",
-          u."Full_Name",
-          CASE 
-            WHEN l."Language_Code" = 'ZH' OR l."Language_Name" ILIKE '%Китай%' THEN 'Джеки Чан (成龙)'
-            ELSE 'Анна Смирнова'
-          END
-        ) AS "Teacher_Name"
+        (${teacherSelect}) AS "Teacher_Name"
       FROM "Lesson_Request" r
       LEFT JOIN "Language" l ON r."ID_Language" = l."ID_Language"
       LEFT JOIN "Request_Status" rs ON r."ID_Status" = rs."ID_Status"
-      LEFT JOIN "User" u ON r."Assigned_Teacher_ID" = u."ID_User"
       ORDER BY r."ID_Request" DESC;
     `;
     const result = await db.query(query);
@@ -175,14 +245,13 @@ app.get('/api/requests', async (req, res) => {
   }
 });
 
-// 4. Смена статуса заявки (персистентное сохранение в PostgreSQL)
+// 4. Персистентная смена статуса заявки
 app.patch('/api/requests/:id/status', async (req, res) => {
   const { id } = req.params;
   const { status_id } = req.body;
   try {
     const db = getPool();
 
-    // Гарантируем, что статус с таким ID есть в справочнике
     await db.query(`
       INSERT INTO "Request_Status" ("ID_Status", "Status_Name") 
       VALUES (2, 'Подтверждена') 
@@ -200,11 +269,12 @@ app.patch('/api/requests/:id/status', async (req, res) => {
   }
 });
 
-// Роут для Vercel / статики
+// Отдача фронтенда
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+// Локальный запуск
 if (!process.env.VERCEL) {
   app.listen(PORT, () => {
     console.log(`Сервер запущен: http://localhost:${PORT}`);
