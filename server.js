@@ -6,39 +6,60 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
+// Отдаем статику в первую очередь
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Получаем строку подключения к базе данных Supabase / PostgreSQL
-const connString = process.env.DATABASE_POSTGRES_URL || process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/language_school';
+// Получаем строку подключения
+const connString = process.env.DATABASE_POSTGRES_URL || process.env.DATABASE_URL;
 
-// Парсим параметры вручную, чтобы исключить ошибку самоподписанного SSL-сертификата Supabase
-let poolConfig = {};
+// Ленивая инициализация пула с лимитом соединений (чтобы не душить Supabase)
+let pool = null;
 
-try {
-  const dbUrl = new URL(connString.replace('postgresql://', 'http://').replace('postgres://', 'http://'));
-  const isLocal = dbUrl.hostname === 'localhost' || dbUrl.hostname === '127.0.0.1';
+function getPool() {
+  if (!pool) {
+    if (connString) {
+      try {
+        const dbUrl = new URL(connString.replace('postgresql://', 'http://').replace('postgres://', 'http://'));
+        const isLocal = dbUrl.hostname === 'localhost' || dbUrl.hostname === '127.0.0.1';
 
-  poolConfig = {
-    user: decodeURIComponent(dbUrl.username),
-    password: decodeURIComponent(dbUrl.password),
-    host: dbUrl.hostname,
-    port: dbUrl.port ? parseInt(dbUrl.port, 10) : 5432,
-    database: dbUrl.pathname.replace('/', ''),
-    ssl: isLocal ? false : { rejectUnauthorized: false }
-  };
-} catch (e) {
-  poolConfig = {
-    connectionString: connString,
-    ssl: { rejectUnauthorized: false }
-  };
+        pool = new Pool({
+          user: decodeURIComponent(dbUrl.username),
+          password: decodeURIComponent(dbUrl.password),
+          host: dbUrl.hostname,
+          port: dbUrl.port ? parseInt(dbUrl.port, 10) : 5432,
+          database: dbUrl.pathname.replace('/', ''),
+          ssl: isLocal ? false : { rejectUnauthorized: false },
+          max: 2, // Ограничиваем пул для Vercel Serverless
+          connectionTimeoutMillis: 5000,
+          idleTimeoutMillis: 10000
+        });
+      } catch (e) {
+        pool = new Pool({
+          connectionString: connString,
+          ssl: { rejectUnauthorized: false },
+          max: 2,
+          connectionTimeoutMillis: 5000
+        });
+      }
+    } else {
+      pool = new Pool({
+        user: process.env.DB_USER || 'postgres',
+        host: process.env.DB_HOST || 'localhost',
+        database: process.env.DB_NAME || 'language_school',
+        password: process.env.DB_PASSWORD || 'root',
+        port: process.env.DB_PORT || 5432,
+        connectionTimeoutMillis: 3000
+      });
+    }
+  }
+  return pool;
 }
-
-const pool = new Pool(poolConfig);
 
 // 1. Получение списка языков
 app.get('/api/languages', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM "Language" ORDER BY "ID_Language" ASC');
+    const db = getPool();
+    const result = await db.query('SELECT * FROM "Language" ORDER BY "ID_Language" ASC');
     res.json(result.rows);
   } catch (err) {
     console.error('Ошибка языков:', err.message);
@@ -46,21 +67,20 @@ app.get('/api/languages', async (req, res) => {
   }
 });
 
-// 2. Отправка новой заявки с формы с защитой от ошибок внешнего ключа (foreign key)
+// 2. Отправка новой заявки с формы
 app.post('/api/requests', async (req, res) => {
-  const { full_name, contact, language_id, preferred_date, notes } = req.body;
+  const { full_name, contact, language_id, preferred_date } = req.body;
   if (!full_name || !contact || !language_id || !preferred_date) {
     return res.status(400).json({ error: 'Все поля обязательны для заполнения' });
   }
 
   try {
-    // Определяем выбранный язык (английский или китайский)
+    const db = getPool();
     const isZh = String(language_id).includes('2') || String(language_id).toUpperCase().includes('ZH');
     const targetCode = isZh ? 'ZH' : 'EN';
     const targetName = isZh ? 'Китайский язык' : 'Английский язык';
 
-    // Гарантируем наличие языка в таблице Language и берем его актуальный ID_Language
-    let langRes = await pool.query(
+    let langRes = await db.query(
       `SELECT "ID_Language" FROM "Language" WHERE "Language_Code" = $1 OR "Language_Name" ILIKE $2 LIMIT 1;`,
       [targetCode, `%${targetName.split(' ')[0]}%`]
     );
@@ -69,26 +89,24 @@ app.post('/api/requests', async (req, res) => {
     if (langRes.rows.length > 0) {
       actualLangId = langRes.rows[0].ID_Language;
     } else {
-      const insertLang = await pool.query(
+      const insertLang = await db.query(
         `INSERT INTO "Language" ("Language_Code", "Language_Name") VALUES ($1, $2) RETURNING "ID_Language";`,
         [targetCode, targetName]
       );
       actualLangId = insertLang.rows[0].ID_Language;
     }
 
-    // Гарантируем наличие системного статуса "Новая" (ID_Status = 1)
-    await pool.query(
+    await db.query(
       `INSERT INTO "Request_Status" ("ID_Status", "Status_Name") VALUES (1, 'Новая') ON CONFLICT DO NOTHING;`
     );
 
-    // Вставляем заявку с существующим внешним ключом
     const query = `
       INSERT INTO "Lesson_Request" 
         ("Full_Name", "Contact", "ID_Language", "Preferred_Date", "ID_Status") 
       VALUES ($1, $2, $3, $4, 1) RETURNING *;
     `;
     const values = [full_name, contact, actualLangId, preferred_date];
-    const result = await pool.query(query, values);
+    const result = await db.query(query, values);
 
     res.status(201).json({ success: true, request: result.rows[0] });
   } catch (err) {
@@ -97,25 +115,34 @@ app.post('/api/requests', async (req, res) => {
   }
 });
 
-// 3. Выгрузка заявок для CRM панели администратора
+// 3. Выгрузка заявок для CRM с автоопределением преподавателя
 app.get('/api/requests', async (req, res) => {
   try {
+    const db = getPool();
     const query = `
       SELECT 
         r."ID_Request", 
         r."Full_Name", 
         r."Contact", 
         l."Language_Name", 
+        l."Language_Code",
         TO_CHAR(r."Preferred_Date", 'YYYY-MM-DD') AS "Preferred_Date", 
         s."Status_Name",
-        COALESCE(u."Full_Name", 'Анна Смирнова') AS "Teacher_Name"
+        COALESCE(
+          u."Full_Name",
+          CASE 
+            WHEN l."Language_Code" = 'ZH' OR l."Language_Name" ILIKE '%Китай%' 
+            THEN 'Ван Ли (王丽)'
+            ELSE 'Анна Смирнова'
+          END
+        ) AS "Teacher_Name"
       FROM "Lesson_Request" r
       JOIN "Language" l ON r."ID_Language" = l."ID_Language"
       JOIN "Request_Status" s ON r."ID_Status" = s."ID_Status"
       LEFT JOIN "User" u ON r."Assigned_Teacher_ID" = u."ID_User"
       ORDER BY r."ID_Request" DESC;
     `;
-    const result = await pool.query(query);
+    const result = await db.query(query);
     res.json(result.rows);
   } catch (err) {
     console.error('Ошибка CRM:', err.message);
@@ -128,7 +155,8 @@ app.patch('/api/requests/:id/status', async (req, res) => {
   const { id } = req.params;
   const { status_id } = req.body;
   try {
-    const result = await pool.query(
+    const db = getPool();
+    const result = await db.query(
       'UPDATE "Lesson_Request" SET "ID_Status" = $1 WHERE "ID_Request" = $2 RETURNING *',
       [status_id, id]
     );
@@ -138,7 +166,7 @@ app.patch('/api/requests/:id/status', async (req, res) => {
   }
 });
 
-// Роут отдачи фронтенда
+// Отдача главной страницы для всех остальных маршрутов
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
